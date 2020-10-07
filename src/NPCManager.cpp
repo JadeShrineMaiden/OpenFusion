@@ -551,8 +551,11 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     if (team == 2) {
         NPCs[resp.NPCAppearanceData.iNPC_ID] = new Mob(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType, NPCData[req->iNPCType], resp.NPCAppearanceData.iNPC_ID);
         MobManager::Mobs[resp.NPCAppearanceData.iNPC_ID] = (Mob*)NPCs[resp.NPCAppearanceData.iNPC_ID];
-    } else
+        NPCs[resp.NPCAppearanceData.iNPC_ID]->npcTeam = team;
+    } else {
         NPCs[resp.NPCAppearanceData.iNPC_ID] = new BaseNPC(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType, resp.NPCAppearanceData.iNPC_ID);
+        NPCs[resp.NPCAppearanceData.iNPC_ID]->npcTeam = team;
+    }
 
     updateNPCPosition(resp.NPCAppearanceData.iNPC_ID, plr->x, plr->y, plr->z);
 }

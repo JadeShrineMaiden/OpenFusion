@@ -10,6 +10,8 @@ public:
     int instanceID;
     std::tuple<int, int, int> chunkPos;
     std::vector<Chunk*> currentChunks;
+    
+    int npcTeam;
 
     BaseNPC() {};
     BaseNPC(int x, int y, int z, int iID, int type, int id) {

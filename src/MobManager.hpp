@@ -18,9 +18,17 @@ enum class MobState {
     DEAD
 };
 
+enum class MobPursuitType {
+    NONE,
+    PLAYER,
+    NPC,
+    MOB
+};
+
 struct Mob : public BaseNPC {
     // general
     MobState state;
+    MobPursuitType targetType;
     int maxHealth;
     int spawnX;
     int spawnY;
@@ -38,6 +46,7 @@ struct Mob : public BaseNPC {
 
     // combat
     CNSocket *target = nullptr;
+    int targetNpc = -1;
     time_t nextAttack = 0;
 
     // temporary; until we're sure what's what
@@ -111,4 +120,7 @@ namespace MobManager {
     void pcAttackChars(CNSocket *sock, CNPacketData *data);
     void resendMobHP(Mob *mob);
     bool aggroCheck(Mob *mob, time_t currTime);
+    
+    void npcAttackNpc(Mob *mob, time_t currTime);
+    void combatStepNpc(Mob *mob, time_t currTime); 
 }
