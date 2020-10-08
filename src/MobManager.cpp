@@ -75,7 +75,7 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         else
             damage = getDamage(plr->pointDamage, (int)mob->data["m_iProtection"], true, (int)mob->data["m_iNpcLevel"]);
 
-        damage.first = hitMob(sock, mob, damage.first);
+        damage.first = hitMob(sock, mob, damage.first / mob->resistance);
 
         respdata[i].iID = mob->appearanceData.iNPC_ID;
         respdata[i].iDamage = damage.first;
@@ -773,7 +773,7 @@ void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
             else
                 damage = getDamage(plr->pointDamage, (int)mob->data["m_iProtection"], true, (int)mob->data["m_iNpcLevel"]);
 
-            damage.first = hitMob(sock, mob, damage.first);
+            damage.first = hitMob(sock, mob, damage.first / mob->resistance);
 
             respdata[i].eCT = pktdata[i*2+1];
             respdata[i].iID = mob->appearanceData.iNPC_ID;
@@ -825,59 +825,72 @@ void MobManager::resendMobHP(Mob *mob) {
  */
 bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
     for (Chunk *chunk : mob->currentChunks) {
-        for (CNSocket *s : chunk->players) {
-            Player *plr = s->plr;
+        if (mob->npcTeam == 2) {
+            for (CNSocket *s : chunk->players) {
+                Player *plr = s->plr;
 
-            if (plr->HP <= 0)
-                continue;
+                if (plr->HP <= 0)
+                    continue;
 
-            int mobRange = mob->data["m_iSightRange"];
+                int mobRange = mob->data["m_iSightRange"];
 
-            if (plr->iConditionBitFlag & CSB_BIT_UP_STEALTH)
-                mobRange /= 3;
+                if (plr->iConditionBitFlag & CSB_BIT_UP_STEALTH)
+                    mobRange /= 3;
 
-            if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVISIBLE)
-                mobRange = -1;
+                if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVISIBLE)
+                    mobRange = -1;
 
-            // height is relevant for aggro distance because of platforming
-            int xyDistance = hypot(mob->appearanceData.iX - plr->x, mob->appearanceData.iY - plr->y);
-            int distance = hypot(xyDistance, mob->appearanceData.iZ - plr->z);
+                // height is relevant for aggro distance because of platforming
+                int xyDistance = hypot(mob->appearanceData.iX - plr->x, mob->appearanceData.iY - plr->y);
+                int distance = hypot(xyDistance, mob->appearanceData.iZ - plr->z);
 
-            if (distance > mobRange)
-                continue;
+                if (distance > mobRange)
+                    continue;
 
-            // found player. engage.
-            mob->target = s;
-            mob->state = MobState::COMBAT;
-            mob->targetType = MobPursuitType::PLAYER;
-            mob->nextMovement = currTime;
-            mob->nextAttack = 0;
-            return true;
-        }
-        
-        for (int32_t m : chunk->NPCs) {
-            if (Mobs.find(m) == Mobs.end())
-                continue;
-            
-            Mob *targ = Mobs[m];
+                // found player. engage.
+                mob->target = s;
+                mob->state = MobState::COMBAT;
+                mob->targetType = MobPursuitType::PLAYER;
+                mob->nextMovement = currTime;
+                mob->nextAttack = 0;
+                return true;
+            }
+        } else if (mob->npcTeam == 1) { 
+            for (int32_t m : chunk->NPCs) {
+                if (m == mob->appearanceData.iNPC_ID || Mobs.find(m) == Mobs.end())
+                    continue;
+                
+                Mob *targ = Mobs[m];
+                
+                if (mob->npcTeam == targ->npcTeam)
+                    continue;
 
-            if (targ->appearanceData.iHP <= 0)
-                continue;
+                if (targ->appearanceData.iHP <= 0 || targ->state == MobState::DEAD)
+                    continue;
 
-            int mobRange = mob->data["m_iSightRange"];
+                int mobRange = mob->data["m_iSightRange"];
+                int mobRange2 = targ->data["m_iSightRange"];
+                int distance = hypot(mob->appearanceData.iX - targ->appearanceData.iX, mob->appearanceData.iY - targ->appearanceData.iY);
 
-            int distance = hypot(mob->appearanceData.iX - targ->appearanceData.iX, mob->appearanceData.iY - targ->appearanceData.iY);
+                if (distance > mobRange) {
+                    if (targ->state == MobState::ROAMING && distance <= mobRange2) {
+                        targ->targetNpc = mob->appearanceData.iNPC_ID;
+                        targ->state = MobState::COMBAT;
+                        targ->targetType = MobPursuitType::MOB;
+                        targ->nextMovement = currTime;
+                        targ->nextAttack = 0;  
+                    }
+                    continue;
+                }
 
-            if (distance > mobRange)
-                continue;
-
-            // found player. engage.
-            mob->targetNpc = m;
-            mob->state = MobState::COMBAT;
-            mob->targetType = MobPursuitType::MOB;
-            mob->nextMovement = currTime;
-            mob->nextAttack = 0;
-            return true;
+                // found player. engage.
+                mob->targetNpc = m;
+                mob->state = MobState::COMBAT;
+                mob->targetType = MobPursuitType::MOB;
+                mob->nextMovement = currTime;
+                mob->nextAttack = 0;
+                return true;
+            }
         }
     }
 
@@ -903,6 +916,8 @@ void MobManager::npcAttackNpc(Mob *mob, time_t currTime) {
     if (targ->state != MobState::ROAMING && targ->state != MobState::COMBAT) {
         damage.first = 0; // no damage
     }
+    
+    damage.first = damage.first / mob->resistance;
 
     if (targ->state == MobState::ROAMING) {
             targ->targetNpc = mob->appearanceData.iNPC_ID;
@@ -919,13 +934,13 @@ void MobManager::npcAttackNpc(Mob *mob, time_t currTime) {
     targ->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
 
     if (targ->appearanceData.iHP <= 0) {
-        mob->state = MobState::DEAD;
-        mob->target = nullptr;
-        mob->targetNpc = -1;
-        mob->targetType = MobPursuitType::NONE;
-        mob->appearanceData.iConditionBitFlag = 0;
-        mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
-        mob->despawned = false;
+        targ->state = MobState::DEAD;
+        targ->target = nullptr;
+        targ->targetNpc = -1;
+        targ->targetType = MobPursuitType::NONE;
+        targ->appearanceData.iConditionBitFlag = 0;
+        targ->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
+        targ->despawned = false;
     }
     
     pkt->eCT = 4;
@@ -1009,13 +1024,5 @@ void MobManager::combatStepNpc(Mob *mob, time_t currTime) {
 
         // notify all nearby players
         NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
-    }
-
-    // retreat if the mob leaves combat range
-    distance = hypot(mob2->appearanceData.iX - mob->spawnX, mob2->appearanceData.iY - mob->spawnY);
-    if (distance >= mob->data["m_iCombatRange"]) {
-        mob->targetNpc = -1;
-        mob->state = MobState::RETREAT;
-        mob->targetType = MobPursuitType::NONE;
     }
 }

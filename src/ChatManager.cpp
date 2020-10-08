@@ -3,6 +3,8 @@
 #include "ChatManager.hpp"
 #include "PlayerManager.hpp"
 #include "TransportManager.hpp"
+#include "NPCManager.hpp"
+#include "MobManager.hpp"
 #include "TableData.hpp"
 #include "limits.h"
 
@@ -81,6 +83,49 @@ void levelCommand(std::string full, std::vector<std::string>& args, CNSocket* so
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
     PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+}
+
+void specSummonCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    if (args.size() < 3) {
+        ChatManager::sendServerMessage(sock, "[Summon] Too few arguments");
+        ChatManager::sendServerMessage(sock, "[Summon] Usage: /summonspecial <id> <team> <resistance>");
+        return;
+    }
+    
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    char *rest;
+    int type = std::strtol(args[1].c_str(), &rest, 10);
+    int team = std::strtol(args[2].c_str(), &rest, 10);
+    int resist = std::strtol(args[3].c_str(), &rest, 10);
+    if (*rest) {
+        ChatManager::sendServerMessage(sock, "Invalid NPC number: " + args[1]);
+        return;
+    }
+
+    // permission & sanity check
+    if (plr == nullptr || type >= 3314)
+        return;
+
+    assert(NPCManager::nextId < INT32_MAX);
+
+    BaseNPC *npc = nullptr;
+    if (team > 0) {
+        npc = new Mob(plr->x, plr->y, plr->z, plr->instanceID, type, NPCManager::NPCData[type], NPCManager::nextId++);
+        npc->appearanceData.iAngle = (plr->angle + 180) % 360;
+
+        NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
+        MobManager::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
+
+        // re-enable respawning
+        ((Mob*)npc)->npcTeam = team;
+        ((Mob*)npc)->summoned = true;
+        ((Mob*)npc)->resistance = resist;
+    } else {
+        return;
+    }
+
+    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z);
 }
 
 void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
@@ -248,6 +293,7 @@ void ChatManager::init() {
     registerCommand("level", 50, levelCommand);
     registerCommand("population", 100, populationCommand);
     registerCommand("refresh", 100, refreshCommand);
+    registerCommand("summonS", 30, specSummonCommand);
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr) {

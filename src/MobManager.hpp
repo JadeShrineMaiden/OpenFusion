@@ -28,7 +28,6 @@ enum class MobPursuitType {
 struct Mob : public BaseNPC {
     // general
     MobState state;
-    MobPursuitType targetType;
     int maxHealth;
     int spawnX;
     int spawnY;
@@ -46,8 +45,10 @@ struct Mob : public BaseNPC {
 
     // combat
     CNSocket *target = nullptr;
+    MobPursuitType targetType;
     int targetNpc = -1;
     time_t nextAttack = 0;
+    int resistance = 1;
 
     // temporary; until we're sure what's what
     nlohmann::json data;

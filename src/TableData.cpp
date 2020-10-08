@@ -187,6 +187,7 @@ void TableData::init() {
             NPCManager::NPCs[nextId] = tmp;
             MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
             NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"]);
+            NPCManager::NPCs[nextId]->npcTeam = td["m_iTeam"];
 
             nextId++;
         }
