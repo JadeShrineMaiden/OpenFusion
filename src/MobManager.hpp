@@ -32,6 +32,7 @@ struct Mob : public BaseNPC {
     int spawnX;
     int spawnY;
     int spawnZ;
+    int fakeid;
 
     // dead
     time_t killedTime = 0;

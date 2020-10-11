@@ -93,9 +93,9 @@ void levelCommand(std::string full, std::vector<std::string>& args, CNSocket* so
 }
 
 void specSummonCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
-    if (args.size() < 3) {
+    if (args.size() < 4) {
         ChatManager::sendServerMessage(sock, "[Summon] Too few arguments");
-        ChatManager::sendServerMessage(sock, "[Summon] Usage: /summonspecial <id> <team> <resistance>");
+        ChatManager::sendServerMessage(sock, "[Summon] Usage: /summonspecial <id> <team> <resist> <realid>");
         return;
     }
     
@@ -105,6 +105,7 @@ void specSummonCommand(std::string full, std::vector<std::string>& args, CNSocke
     int type = std::strtol(args[1].c_str(), &rest, 10);
     int team = std::strtol(args[2].c_str(), &rest, 10);
     int resist = std::strtol(args[3].c_str(), &rest, 10);
+    int realid = std::strtol(args[4].c_str(), &rest, 10);
     if (*rest) {
         ChatManager::sendServerMessage(sock, "Invalid NPC number: " + args[1]);
         return;
@@ -128,6 +129,7 @@ void specSummonCommand(std::string full, std::vector<std::string>& args, CNSocke
         ((Mob*)npc)->npcTeam = team;
         ((Mob*)npc)->summoned = true;
         ((Mob*)npc)->resistance = resist;
+        ((Mob*)npc)->appearanceData.iNPCType = realid;
     } else {
         return;
     }
