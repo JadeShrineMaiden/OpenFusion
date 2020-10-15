@@ -18,6 +18,13 @@ enum class MobState {
     DEAD
 };
 
+enum class MobPursuitType {
+    NONE,
+    PLAYER,
+    NPC,
+    MOB
+};
+
 struct Mob : public BaseNPC {
     // general
     MobState state;
@@ -38,9 +45,13 @@ struct Mob : public BaseNPC {
     bool staticPath = false;
 
     // combat
+    MobPursuitType targetType;
     CNSocket *target = nullptr;
+    int targetNpc = -1;
     time_t nextAttack = 0;
     int roamX, roamY, roamZ;
+    int resist = 1;
+    int boost = 1;
 
     // temporary; until we're sure what's what
     nlohmann::json data;
@@ -115,4 +126,7 @@ namespace MobManager {
     void resendMobHP(Mob *mob);
     void incNextMovement(Mob *mob, time_t currTime=0);
     bool aggroCheck(Mob *mob, time_t currTime);
+
+    void npcAttackNpc(Mob *mob, time_t currTime);
+    void combatStepNpc(Mob *mob, time_t currTime); 
 }

@@ -83,7 +83,8 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         int difficulty = (int)mob->data["m_iNpcLevel"];
         
         damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW >= 11 + difficulty), NanoManager::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
-        
+        damage.first /= mob->resist;
+
         if (plr->batteryW >= 11 + difficulty)
             plr->batteryW -= 11 + difficulty;
 
@@ -123,6 +124,7 @@ void MobManager::npcAttackPc(Mob *mob, time_t currTime) {
     sAttackResult *atk = (sAttackResult*)(respbuf + sizeof(sP_FE2CL_NPC_ATTACK_PCs));
 
     auto damage = getDamage(475 + (int)mob->data["m_iPower"], plr->defense, false, false, -1, -1, 1);
+    damage.first *= mob->boost;
     plr->HP -= damage.first;
 
     pkt->iNPC_ID = mob->appearanceData.iNPC_ID;
@@ -139,6 +141,7 @@ void MobManager::npcAttackPc(Mob *mob, time_t currTime) {
     if (plr->HP <= 0) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
+        mob->targetType = MobPursuitType::NONE;
         aggroCheck(mob, currTime);
     }
 }
@@ -208,6 +211,7 @@ int MobManager::hitMob(CNSocket *sock, Mob *mob, int damage) {
             assert(mob->target == nullptr);
             mob->target = sock;
             mob->state = MobState::COMBAT;
+            mob->targetType = MobPursuitType::PLAYER;
             mob->nextMovement = getTime();
             mob->nextAttack = 0;
 
@@ -230,7 +234,9 @@ int MobManager::hitMob(CNSocket *sock, Mob *mob, int damage) {
 
 void MobManager::killMob(CNSocket *sock, Mob *mob) {
     mob->state = MobState::DEAD;
+    mob->targetType = MobPursuitType::NONE;
     mob->target = nullptr;
+    mob->targetNpc = -1;
     mob->appearanceData.iConditionBitFlag = 0;
     mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
 
@@ -330,6 +336,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     if (PlayerManager::players.find(mob->target) == PlayerManager::players.end()) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
+        mob->targetType = MobPursuitType::NONE;
         aggroCheck(mob, currTime);
         return;
     }
@@ -343,6 +350,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     if (plr->HP <= 0) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
+        mob->targetType = MobPursuitType::NONE;
         aggroCheck(mob, currTime);
         return;
     }
@@ -530,7 +538,10 @@ void MobManager::step(CNServer *serv, time_t currTime) {
             roamingStep(pair.second, currTime);
             break;
         case MobState::COMBAT:
-            combatStep(pair.second, currTime);
+            if (pair.second->targetType == MobPursuitType::PLAYER)
+                combatStep(pair.second, currTime);
+            else if (pair.second->targetType == MobPursuitType::MOB)
+                combatStepNpc(pair.second, currTime);
             break;
         case MobState::RETREAT:
             retreatStep(pair.second, currTime);
@@ -837,9 +848,9 @@ void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
                 damage.first = plr->groupDamage;
             else
                 damage.first = plr->pointDamage;
-        
+
             damage = getDamage(damage.first, target->defense, true, (plr->batteryW >= 12), -1, -1, 1);
-        
+
             if (plr->batteryW >= 12)
                 plr->batteryW -= 12;
 
@@ -869,7 +880,8 @@ void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
             
             damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW >= 11 + difficulty),
                 NanoManager::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
-            
+            damage.first /= mob->resist;
+
             if (plr->batteryW >= 11 + difficulty)
                 plr->batteryW -= 11 + difficulty;
 
@@ -925,40 +937,219 @@ void MobManager::resendMobHP(Mob *mob) {
  */
 bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
     for (Chunk *chunk : mob->currentChunks) {
-        for (CNSocket *s : chunk->players) {
-            Player *plr = s->plr;
+        if (mob->team == 2) {
+            for (CNSocket *s : chunk->players) {
+                Player *plr = s->plr;
 
-            if (plr->HP <= 0)
-                continue;
+                if (plr->HP <= 0)
+                    continue;
 
-            int mobRange = mob->data["m_iSightRange"];
+                int mobRange = mob->data["m_iSightRange"];
 
-            if (plr->iConditionBitFlag & CSB_BIT_UP_STEALTH)
-                mobRange /= 3;
+                if (plr->iConditionBitFlag & CSB_BIT_UP_STEALTH)
+                    mobRange /= 3;
 
-            if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVISIBLE)
+                if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVISIBLE)
                 mobRange = -1;
 
-            // height is relevant for aggro distance because of platforming
-            int xyDistance = hypot(mob->appearanceData.iX - plr->x, mob->appearanceData.iY - plr->y);
-            int distance = hypot(xyDistance, mob->appearanceData.iZ - plr->z);
+                // height is relevant for aggro distance because of platforming
+                int xyDistance = hypot(mob->appearanceData.iX - plr->x, mob->appearanceData.iY - plr->y);
+                int distance = hypot(xyDistance, mob->appearanceData.iZ - plr->z);
 
-            if (distance > mobRange)
-                continue;
+                if (distance > mobRange)
+                    continue;
 
-            // found player. engage.
-            mob->target = s;
-            mob->state = MobState::COMBAT;
-            mob->nextMovement = currTime;
-            mob->nextAttack = 0;
+                // found player. engage.
+                mob->target = s;
+                mob->state = MobState::COMBAT;
+                mob->targetType = MobPursuitType::PLAYER;
+                mob->nextMovement = currTime;
+                mob->nextAttack = 0;
 
-            mob->roamX = mob->appearanceData.iX;
-            mob->roamY = mob->appearanceData.iY;
-            mob->roamZ = mob->appearanceData.iZ;
+                mob->roamX = mob->appearanceData.iX;
+                mob->roamY = mob->appearanceData.iY;
+                mob->roamZ = mob->appearanceData.iZ;
+                return true;
+            }
+        } else if (mob->team == 1) { 
+            for (int32_t m : chunk->NPCs) {
+                if (m == mob->appearanceData.iNPC_ID || Mobs.find(m) == Mobs.end())
+                    continue;
 
-            return true;
+                Mob *targ = Mobs[m];
+                
+                if (mob->team == targ->team)
+                    continue;
+
+                if (targ->appearanceData.iHP <= 0 || targ->state == MobState::DEAD)
+                    continue;
+
+                int mobRange = mob->data["m_iSightRange"];
+                int mobRange2 = targ->data["m_iSightRange"];
+                int distance = hypot(mob->appearanceData.iX - targ->appearanceData.iX, mob->appearanceData.iY - targ->appearanceData.iY);
+                
+                if (distance > mobRange) {
+                    if (targ->state == MobState::ROAMING && distance <= mobRange2) {
+                        // npc found us. let them engage.
+                        targ->targetNpc = mob->appearanceData.iNPC_ID;
+                        targ->state = MobState::COMBAT;
+                        targ->targetType = MobPursuitType::MOB;
+                        targ->nextMovement = currTime;
+                        targ->nextAttack = 0;
+
+                        targ->roamX = mob->appearanceData.iX;
+                        targ->roamY = mob->appearanceData.iY;
+                        targ->roamZ = mob->appearanceData.iZ;
+                    }
+                    continue;
+                }
+
+                // found npc. engage.
+                mob->targetNpc = m;
+                mob->state = MobState::COMBAT;
+                mob->targetType = MobPursuitType::MOB;
+                mob->nextMovement = currTime;
+                mob->nextAttack = 0;
+
+                mob->roamX = mob->appearanceData.iX;
+                mob->roamY = mob->appearanceData.iY;
+                mob->roamZ = mob->appearanceData.iZ;
+                return true;
+            }
         }
     }
 
     return false;
+}
+
+void MobManager::npcAttackNpc(Mob *mob, time_t currTime) {
+    if (Mobs.find(mob->targetNpc) == Mobs.end())
+        return;
+    
+    Mob *targ = Mobs[mob->targetNpc];
+
+    const size_t resplen = sizeof(sP_FE2CL_CHARACTER_ATTACK_CHARACTERs) + sizeof(sAttackResult);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    memset(respbuf, 0, resplen);
+
+    sP_FE2CL_CHARACTER_ATTACK_CHARACTERs *pkt = (sP_FE2CL_CHARACTER_ATTACK_CHARACTERs*)respbuf;
+    sAttackResult *atk = (sAttackResult*)(respbuf + sizeof(sP_FE2CL_CHARACTER_ATTACK_CHARACTERs));
+
+    auto damage = getDamage(470 + (int)mob->data["m_iPower"], (int)targ->data["m_iProtection"], false, 1,
+                            (int)mob->data["m_iNpcStyle"], (int)targ->data["m_iNpcStyle"], 1);
+    damage.first *= mob->boost / targ->resist;
+     // cannot kill mobs multiple times; cannot harm retreating mobs
+    if (targ->state != MobState::ROAMING && targ->state != MobState::COMBAT) {
+        damage.first = 0; // no damage
+    }
+    
+    damage.first = damage.first / mob->resist;
+
+    if (targ->state == MobState::ROAMING) {
+            targ->targetNpc = mob->appearanceData.iNPC_ID;
+            targ->state = MobState::COMBAT;
+            targ->targetType = MobPursuitType::MOB;
+            targ->nextMovement = getTime();
+            targ->nextAttack = 0;
+    }
+
+    targ->appearanceData.iHP -= damage.first;
+
+    // wake up sleeping monster
+    // TODO: remove client-side bit somehow
+    targ->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
+
+    if (targ->appearanceData.iHP <= 0) {
+        targ->state = MobState::DEAD;
+        targ->target = nullptr;
+        targ->targetNpc = -1;
+        targ->targetType = MobPursuitType::NONE;
+        targ->appearanceData.iConditionBitFlag = 0;
+        targ->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
+        targ->despawned = false;
+    }
+    
+    pkt->eCT = 4;
+    pkt->iCharacterID = mob->appearanceData.iNPC_ID;
+    pkt->iTargetCnt = 1;
+
+    atk->iID = targ->appearanceData.iNPC_ID;
+    atk->iDamage = damage.first;
+    atk->iHP = targ->appearanceData.iHP;
+    atk->iHitFlag = damage.second;
+
+    NPCManager::sendToViewable(mob, (void*)respbuf, P_FE2CL_CHARACTER_ATTACK_CHARACTERs, resplen);
+
+    if (targ->appearanceData.iHP <= 0) {
+        mob->targetNpc = -1;
+        mob->state = MobState::RETREAT;
+        mob->targetType = MobPursuitType::NONE;
+        aggroCheck(mob, currTime);
+    }
+}
+
+void MobManager::combatStepNpc(Mob *mob, time_t currTime) {
+
+    if (Mobs.find(mob->targetNpc) == Mobs.end()) {
+        mob->targetNpc = -1;
+        mob->state = MobState::RETREAT;
+        mob->targetType = MobPursuitType::NONE;
+        aggroCheck(mob, currTime);
+        return;
+    }
+    
+    Mob *mob2 = Mobs[mob->targetNpc];
+
+    // did something else kill the mob in the mean time?
+    if (mob2->appearanceData.iHP <= 0) {
+        mob->targetNpc = -1;
+        mob->state = MobState::RETREAT;
+        mob->targetType = MobPursuitType::NONE;
+        aggroCheck(mob, currTime);
+        return;
+    }
+
+    int distance = hypot(mob2->appearanceData.iX - mob->appearanceData.iX, mob2->appearanceData.iY - mob->appearanceData.iY);
+
+    /*
+     * If the mob is close enough to attack, do so. If not, get closer.
+     * No, I'm not 100% sure this is how it's supposed to work.
+     */
+    if (distance <= (int)mob->data["m_iAtkRange"]) {
+        // attack logic
+        if (mob->nextAttack == 0) {
+            mob->nextAttack = currTime + (int)mob->data["m_iInitalTime"] * 100; // I *think* this is what this is
+            npcAttackNpc(mob, currTime);
+        } else if (mob->nextAttack != 0 && currTime >= mob->nextAttack) {
+            mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
+            npcAttackNpc(mob, currTime);
+        }
+    } else {
+        // movement logic
+        if (mob->nextMovement != 0 && currTime < mob->nextMovement)
+            return;
+        mob->nextMovement = currTime + 500;
+
+        int speed = mob->data["m_iRunSpeed"];
+
+        // halve movement speed if snared
+        if (mob->appearanceData.iConditionBitFlag & CSB_BIT_DN_MOVE_SPEED)
+            speed /= 2;
+
+        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, mob2->appearanceData.iX, mob2->appearanceData.iY, speed);
+
+        NPCManager::updateNPCPosition(mob->appearanceData.iNPC_ID, targ.first, targ.second, mob->appearanceData.iZ);
+
+        INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
+
+        pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
+        pkt.iSpeed = speed;
+        pkt.iToX = mob->appearanceData.iX = targ.first;
+        pkt.iToY = mob->appearanceData.iY = targ.second;
+        pkt.iToZ = mob->appearanceData.iZ;
+
+        // notify all nearby players
+        NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
+    }
 }

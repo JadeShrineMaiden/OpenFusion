@@ -8,6 +8,7 @@ public:
     sNPCAppearanceData appearanceData;
     NPCClass npcClass;
     int instanceID;
+    int team;
     std::tuple<int, int, int> chunkPos;
     std::vector<Chunk*> currentChunks;
 
