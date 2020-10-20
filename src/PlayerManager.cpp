@@ -105,11 +105,13 @@ bool PlayerManager::removePlayerFromChunks(std::vector<Chunk*> chunks, CNSocket*
                 exitBusData.eTT = 3;
                 exitBusData.iT_ID = id;
                 sock->sendPacket((void*)&exitBusData, P_FE2CL_TRANSPORTATION_EXIT, sizeof(sP_FE2CL_TRANSPORTATION_EXIT));
+                ChatManager::sendServerMessage(sock, "[CHUNK] BUS of id: " + std::to_string(id) + " was removed from view.");
                 break;
             default:
                 INITSTRUCT(sP_FE2CL_NPC_EXIT, exitData);
                 exitData.iNPC_ID = id;
                 sock->sendPacket((void*)&exitData, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
+                //ChatManager::sendServerMessage(sock, "[CHUNK] NPC of id: " + std::to_string(id) + " was removed from view.");
                 break;
             }
         }
@@ -139,11 +141,13 @@ void PlayerManager::addPlayerToChunks(std::vector<Chunk*> chunks, CNSocket* sock
                 INITSTRUCT(sP_FE2CL_TRANSPORTATION_ENTER, enterBusData);
                 enterBusData.AppearanceData = { 3, npc->appearanceData.iNPC_ID, npc->appearanceData.iNPCType, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ };
                 sock->sendPacket((void*)&enterBusData, P_FE2CL_TRANSPORTATION_ENTER, sizeof(sP_FE2CL_TRANSPORTATION_ENTER));
+                ChatManager::sendServerMessage(sock, "[CHUNK] BUS of id: " + std::to_string(id) + " was added to view.");
                 break;
             default:
                 INITSTRUCT(sP_FE2CL_NPC_ENTER, enterData);
                 enterData.NPCAppearanceData = NPCManager::NPCs[id]->appearanceData;
                 sock->sendPacket((void*)&enterData, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
+                //ChatManager::sendServerMessage(sock, "[CHUNK] NPC of id: " + std::to_string(id) + " was added to view.");
                 break;
             }
         }
@@ -208,7 +212,9 @@ void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y, uint64_t ins
         return;
 
     // add player to chunk
-    std::vector<Chunk*> allChunks = ChunkManager::grabChunks(newPos);
+    std::vector<Chunk*> allChunks = ChunkManager::grabChunks(newPos, sock);
+    
+    ChatManager::sendServerMessage(sock, "[CHUNK] Moved to chunk (" + std::to_string(X / (settings::VIEWDISTANCE / 3)) + ", " + std::to_string(Y / (settings::VIEWDISTANCE / 3)) + ")");
 
     Chunk *chunk = nullptr;
     if (ChunkManager::checkChunk(view.chunkPos))

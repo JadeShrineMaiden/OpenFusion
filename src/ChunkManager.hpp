@@ -33,8 +33,8 @@ namespace ChunkManager {
     bool checkChunk(std::tuple<int, int, uint64_t> chunk);
     void destroyChunk(std::tuple<int, int, uint64_t> chunkPos);
     std::tuple<int, int, uint64_t> grabChunk(int posX, int posY, uint64_t instanceID);
-    std::vector<Chunk*> grabChunks(std::tuple<int, int, uint64_t> chunkPos);
-    std::vector<Chunk*> getDeltaChunks(std::vector<Chunk*> from, std::vector<Chunk*> to);
+    std::vector<Chunk*> grabChunks(std::tuple<int, int, uint64_t> chunkPos, CNSocket* sock = nullptr);
+    std::vector<Chunk*> getDeltaChunks(std::vector<Chunk*> from, std::vector<Chunk*> to, int opt = 0, CNSocket* sock = nullptr);
     std::vector<std::tuple<int, int, uint64_t>> getChunksInMap(uint64_t mapNum);
     bool inPopulatedChunks(int posX, int posY, uint64_t instanceID);
 

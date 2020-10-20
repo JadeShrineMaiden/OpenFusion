@@ -3,6 +3,7 @@
 #include "NPCManager.hpp"
 #include "settings.hpp"
 #include "MobManager.hpp"
+#include "ChatManager.hpp"
 
 std::map<std::tuple<int, int, uint64_t>, Chunk*> ChunkManager::chunks;
 
@@ -128,7 +129,7 @@ std::tuple<int, int, uint64_t> ChunkManager::grabChunk(int posX, int posY, uint6
     return std::make_tuple(posX / (settings::VIEWDISTANCE / 3), posY / (settings::VIEWDISTANCE / 3), instanceID);
 }
 
-std::vector<Chunk*> ChunkManager::grabChunks(std::tuple<int, int, uint64_t> chunk) {
+std::vector<Chunk*> ChunkManager::grabChunks(std::tuple<int, int, uint64_t> chunk, CNSocket* sock) {
     std::vector<Chunk*> chnks;
     chnks.reserve(9);
 
@@ -144,6 +145,8 @@ std::vector<Chunk*> ChunkManager::grabChunks(std::tuple<int, int, uint64_t> chun
             // if chunk exists, add it to the vector
             if (checkChunk(pos))
                 chnks.push_back(chunks[pos]);
+            else if (sock != nullptr)
+                ChatManager::sendServerMessage(sock, "[CHUNK] Chunk (" + std::to_string(x+i) + ", " + std::to_string(y+z) + ") does not exist");
         }
     }
 
@@ -151,7 +154,7 @@ std::vector<Chunk*> ChunkManager::grabChunks(std::tuple<int, int, uint64_t> chun
 }
 
 // returns the chunks that aren't shared (only from from)
-std::vector<Chunk*> ChunkManager::getDeltaChunks(std::vector<Chunk*> from, std::vector<Chunk*> to) {
+std::vector<Chunk*> ChunkManager::getDeltaChunks(std::vector<Chunk*> from, std::vector<Chunk*> to, int opt, CNSocket* sock) {
     std::vector<Chunk*> delta;
 
     for (Chunk* i : from) {
@@ -166,8 +169,15 @@ std::vector<Chunk*> ChunkManager::getDeltaChunks(std::vector<Chunk*> from, std::
         }
 
         // add it to the vector if we didn't find it!
-        if (!found)
+        if (!found) {
             delta.push_back(i);
+            if (sock != nullptr) {
+                if (opt == 1)
+                    ChatManager::sendServerMessage(sock, "[CHUNK] Removed chunk ("); //+ std::to_string(i) + ", " + std::to_string(z) + ") in view");
+                if (opt == 2)
+                    ChatManager::sendServerMessage(sock, "[CHUNK] Added chunk ("); //+ std::to_string(i) + ", " + std::to_string(z) + ") in view");
+            }
+        }
     }
 
     return delta;
