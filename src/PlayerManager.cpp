@@ -64,15 +64,12 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
 
 void PlayerManager::removePlayer(CNSocket* key) {
     PlayerView& view = players[key];
+    uint64_t fromInstance = view.plr->instanceID;
 
-    //MissionManager::failInstancedMissions(key); moved to enter
     GroupManager::groupKickPlayer(view.plr);
 
     // save player to DB
     Database::updatePlayer(view.plr);
-
-    INITSTRUCT(sP_FE2CL_PC_EXIT, exitPacket);
-    exitPacket.iID = players[key].plr->iID;
 
     // remove players from all chunks
     removePlayerFromChunks(view.currentChunks, key);
@@ -86,6 +83,9 @@ void PlayerManager::removePlayer(CNSocket* key) {
     key->plr = nullptr;
     delete view.plr;
     players.erase(key);
+
+    // if the player was in a lair, clean it up
+    ChunkManager::destroyInstanceIfEmpty(fromInstance);
 
     std::cout << players.size() << " players" << std::endl;
 }
@@ -236,6 +236,9 @@ void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y, uint64_t ins
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I) {
     PlayerView& plrv = PlayerManager::players[sock];
     Player* plr = plrv.plr;
+
+    uint64_t fromInstance = plr->instanceID;
+
     plr->instanceID = I;
     if (I != INSTANCE_OVERWORLD) {
         INITSTRUCT(sP_FE2CL_INSTANCE_MAP_INFO, pkt);
@@ -256,7 +259,8 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
         plrv.currentChunks.clear();
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
     }
-    
+
+    ChunkManager::destroyInstanceIfEmpty(fromInstance);
 }
 
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z) {
@@ -316,7 +320,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iAngle = plr.angle;
     response.PCLoadData2CL.iBatteryN = plr.batteryN;
     response.PCLoadData2CL.iBatteryW = plr.batteryW;
-    response.PCLoadData2CL.iBuddyWarpTime = 60; //sets 60s warp cooldown on login
+    response.PCLoadData2CL.iBuddyWarpTime = 60; // sets 60s warp cooldown on login
 
     response.PCLoadData2CL.iWarpLocationFlag = plr.iWarpLocationFlag;
     response.PCLoadData2CL.aWyvernLocationFlag[0] = plr.aSkywayLocationFlag[0];
@@ -326,8 +330,8 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iFatigue = 50;
     response.PCLoadData2CL.PCStyle = plr.PCStyle;
 
-    //client doesnt read this, it gets it from charinfo
-    //response.PCLoadData2CL.PCStyle2 = plr.PCStyle2;
+    // client doesnt read this, it gets it from charinfo
+    // response.PCLoadData2CL.PCStyle2 = plr.PCStyle2;
     // inventory
     for (int i = 0; i < AEQUIP_COUNT; i++)
         response.PCLoadData2CL.aEquip[i] = plr.Equip[i];
@@ -343,7 +347,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     for (int i = 0; i < 3; i++) {
         response.PCLoadData2CL.aNanoSlots[i] = plr.equippedNanos[i];
     }
-    //missions in progress
+    // missions in progress
     for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
         if (plr.tasks[i] == 0)
             break;
@@ -386,10 +390,10 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     ChatManager::sendServerMessage(sock, settings::MOTDSTRING);
 
     addPlayer(sock, plr);
-    //check if there is an expiring vehicle
+    // check if there is an expiring vehicle
     ItemManager::checkItemExpire(sock, getPlayer(sock));
 
-    //set player equip stats
+    // set player equip stats
     ItemManager::setItemStats(getPlayer(sock));
 
     MissionManager::failInstancedMissions(sock);
@@ -795,9 +799,7 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
         NanoManager::nanoUnbuff(sock, CSB_BIT_PHOENIX, ECSB_PHOENIX, 0, false);
         plr->HP = PC_MAXHEALTH(plr->level);
     } else {
-        plr->x = target.x;
-        plr->y = target.y;
-        plr->z = target.z;
+        updatePlayerPosition(sock, target.x, target.y, target.z);
 
         if (reviveData->iRegenType != 5)
             plr->HP = PC_MAXHEALTH(plr->level);
@@ -864,8 +866,7 @@ void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
         sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_FAIL, sizeof(sP_FE2CL_PC_VEHICLE_ON_FAIL));
 
         // check if vehicle didn't expire
-        if (plr.plr->Equip[8].iTimeLimit < getTimestamp())
-        {
+        if (plr.plr->Equip[8].iTimeLimit < getTimestamp()) {
             plr.plr->toRemoveVehicle.eIL = 0;
             plr.plr->toRemoveVehicle.iSlotNum = 8;
             ItemManager::checkItemExpire(sock, plr.plr);
@@ -956,8 +957,7 @@ WarpLocation PlayerManager::getRespawnPoint(Player *plr) {
 
 bool PlayerManager::isAccountInUse(int accountId) {
     std::map<CNSocket*, PlayerView>::iterator it;
-    for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++)
-    {
+    for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++) {
         if (it->second.plr->accountId == accountId)
             return true;
     }

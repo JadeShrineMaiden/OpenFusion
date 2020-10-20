@@ -9,15 +9,33 @@ std::map<std::tuple<int, int, uint64_t>, Chunk*> ChunkManager::chunks;
 
 void ChunkManager::init() {} // stubbed
 
+void ChunkManager::newChunk(std::tuple<int, int, uint64_t> pos) {
+    Chunk *chunk = new Chunk();
+
+    chunk->players = std::set<CNSocket*>();
+    chunk->NPCs = std::set<int32_t>();
+
+    // add the new chunk to every player and mob that's near it
+    for (Chunk *c : grabChunks(pos)) {
+        if (c == chunk)
+            continue;
+
+        for (CNSocket *s : c->players)
+            PlayerManager::players[s].currentChunks.push_back(chunk);
+
+        for (int32_t id : c->NPCs)
+            NPCManager::NPCs[id]->currentChunks.push_back(chunk);
+    }
+
+    chunks[pos] = chunk;
+}
+
 void ChunkManager::addNPC(int posX, int posY, uint64_t instanceID, int32_t id) {
     std::tuple<int, int, uint64_t> pos = grabChunk(posX, posY, instanceID);
 
     // make chunk if it doesn't exist!
-    if (chunks.find(pos) == chunks.end()) {
-        chunks[pos] = new Chunk();
-        chunks[pos]->players = std::set<CNSocket*>();
-        chunks[pos]->NPCs = std::set<int32_t>();
-    }
+    if (chunks.find(pos) == chunks.end())
+        newChunk(pos);
 
     Chunk* chunk = chunks[pos];
 
@@ -28,11 +46,8 @@ void ChunkManager::addPlayer(int posX, int posY, uint64_t instanceID, CNSocket* 
     std::tuple<int, int, uint64_t> pos = grabChunk(posX, posY, instanceID);
 
     // make chunk if it doesn't exist!
-    if (chunks.find(pos) == chunks.end()) {
-        chunks[pos] = new Chunk();
-        chunks[pos]->players = std::set<CNSocket*>();
-        chunks[pos]->NPCs = std::set<int32_t>();
-    }
+    if (chunks.find(pos) == chunks.end())
+        newChunk(pos);
 
     Chunk* chunk = chunks[pos];
 
@@ -95,7 +110,7 @@ void ChunkManager::destroyChunk(std::tuple<int, int, uint64_t> chunkPos) {
     for (Chunk* otherChunk : grabChunks(chunkPos)) {
         if (otherChunk == chunk)
             continue;
-        
+
         // remove from NPCs
         for (uint32_t id : otherChunk->NPCs) {
             if (std::find(NPCManager::NPCs[id]->currentChunks.begin(), NPCManager::NPCs[id]->currentChunks.end(), chunk) != NPCManager::NPCs[id]->currentChunks.end()) {
@@ -222,7 +237,7 @@ void ChunkManager::createInstance(uint64_t instanceID) {
                 BaseNPC* baseNPC = NPCManager::NPCs[npcID];
                 if (baseNPC->npcClass == NPC_MOB) {
                     Mob* newMob = new Mob(baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, baseNPC->appearanceData.iZ, baseNPC->appearanceData.iAngle,
-                        instanceID, baseNPC->appearanceData.iNPCType, baseNPC->appearanceData.iHP, NPCManager::NPCData[baseNPC->appearanceData.iNPCType], newID);
+                        instanceID, baseNPC->appearanceData.iNPCType, ((Mob*)baseNPC)->maxHealth, NPCManager::NPCData[baseNPC->appearanceData.iNPCType], newID);
                     NPCManager::NPCs[newID] = newMob;
                     MobManager::Mobs[newID] = newMob;
                 } else {
@@ -233,8 +248,7 @@ void ChunkManager::createInstance(uint64_t instanceID) {
                 NPCManager::updateNPCInstance(newID, instanceID); // make sure the npc state gets updated
             }
         }
-    }
-    else {
+    } else {
         std::cout << "Instance " << instanceID << " already exists" << std::endl;
     }
 }
@@ -245,4 +259,20 @@ void ChunkManager::destroyInstance(uint64_t instanceID) {
     for (std::tuple<int, int, uint64_t>& coords : instanceChunks) {
         destroyChunk(coords);
     }
+}
+
+void ChunkManager::destroyInstanceIfEmpty(uint64_t instanceID) {
+    if (PLAYERID(instanceID) == 0)
+        return; // don't clean up overworld/IZ chunks
+
+    std::vector<std::tuple<int, int, uint64_t>> sourceChunkCoords = getChunksInMap(instanceID);
+
+    for (std::tuple<int, int, uint64_t>& coords : sourceChunkCoords) {
+        Chunk* chunk = chunks[coords];
+
+        if (chunk->players.size() > 0)
+            return; // there are still players inside
+    }
+
+    destroyInstance(instanceID);
 }

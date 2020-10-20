@@ -15,9 +15,9 @@ public:
 };
 
 enum {
-    INSTANCE_OVERWORLD // default instance every player starts in
-    //INSTANCE_IZ, // these aren't actually used
-    //INSTANCE_UNIQUE
+    INSTANCE_OVERWORLD, // default instance every player starts in
+    INSTANCE_IZ, // these aren't actually used
+    INSTANCE_UNIQUE // these aren't actually used
 };
 
 namespace ChunkManager {
@@ -26,6 +26,7 @@ namespace ChunkManager {
 
     extern std::map<std::tuple<int, int, uint64_t>, Chunk*> chunks;
 
+    void newChunk(std::tuple<int, int, uint64_t> pos);
     void addNPC(int posX, int posY, uint64_t instanceID, int32_t id);
     void addPlayer(int posX, int posY, uint64_t instanceID, CNSocket* sock);
     bool removePlayer(std::tuple<int, int, uint64_t> chunkPos, CNSocket* sock);
@@ -40,4 +41,5 @@ namespace ChunkManager {
 
     void createInstance(uint64_t);
     void destroyInstance(uint64_t);
+    void destroyInstanceIfEmpty(uint64_t);
 }
