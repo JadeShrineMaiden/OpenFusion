@@ -584,22 +584,14 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     if (Warps.find(warpId) == Warps.end())
         return;
 
-    MissionManager::failInstancedMissions(sock); // fail any missions that require the player's current instance
-
     uint64_t fromInstance = plrv.plr->instanceID; // saved for post-warp
-
-    if (plrv.plr->instanceID == 0) {
-        // save last uninstanced coords
-        plrv.plr->lastX = plrv.plr->x;
-        plrv.plr->lastY = plrv.plr->y;
-        plrv.plr->lastZ = plrv.plr->z;
-        plrv.plr->lastAngle = plrv.plr->angle;
-    }
 
     // std::cerr << "Warped to Map Num:" << Warps[warpId].instanceID << " NPC ID " << Warps[warpId].npcID << std::endl;
     if (Warps[warpId].isInstance) {
         uint64_t instanceID = Warps[warpId].instanceID;
-        if (Warps[warpId].limitTaskID != 0) { // if warp requires you to be on a mission, it's gotta be a unique instance
+
+        // if warp requires you to be on a mission, it's gotta be a unique instance
+        if (Warps[warpId].limitTaskID != 0 || instanceID == 14) { // 14 is a special case for the Time Lab
             instanceID += ((uint64_t)plrv.plr->iIDGroup << 32); // upper 32 bits are leader ID
             ChunkManager::createInstance(instanceID);
         }
