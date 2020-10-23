@@ -812,14 +812,12 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
         
         if (plr->debugger > 0) {
             bool check = false;
-            std::tuple<int, int, uint64_t> newPos = ChunkManager::grabChunk(plr->x, plr->y, plr->instanceID);
-            std::vector<Chunk*> chonky = ChunkManager::grabChunks(newPos, sock);
-            for (Chunk *chunk : chonky) {
-                for (CNSocket *s : chunk->players) {
-                    Player *plor = s->plr;
-                    if (plr == plor)
-                        check = true;
-                }
+            std::tuple<int, int, uint64_t> pos = ChunkManager::grabChunk(plr->x, plr->y, plr->instanceID);
+            Chunk* chunk = ChunkManager::chunks[pos];
+            for (CNSocket *s : chunk->players) {
+                Player *plor = s->plr;
+                if (plr == plor)
+                    check = true;
             }
         
             if (check == false)

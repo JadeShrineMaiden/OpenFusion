@@ -214,7 +214,7 @@ void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y, uint64_t ins
     // add player to chunk
     std::vector<Chunk*> allChunks = ChunkManager::grabChunks(newPos, sock);
     
-    if (view.plr->debugger > 1)
+    if (view.plr->debugger > 0)
         ChatManager::sendServerMessage(sock, "[CHUNK] Moved to chunk (" + std::to_string(X / (settings::VIEWDISTANCE / 3)) + ", " + std::to_string(Y / (settings::VIEWDISTANCE / 3)) + ")");
 
     Chunk *chunk = nullptr;
@@ -229,9 +229,10 @@ void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y, uint64_t ins
     // now, add all the new npcs & players!
     addPlayerToChunks(ChunkManager::getDeltaChunks(allChunks, view.currentChunks), sock);
 
-    ChunkManager::addPlayer(X, Y, view.plr->instanceID, sock); // takes care of adding the player to the chunk if it exists or not
     view.chunkPos = newPos;
     view.currentChunks = allChunks;
+    ChunkManager::addPlayer(X, Y, view.plr->instanceID, sock); // takes care of adding the player to the chunk if it exists or not
+
     
     bool check = false;
     std::vector<Chunk*> chonky = ChunkManager::grabChunks(newPos, sock);

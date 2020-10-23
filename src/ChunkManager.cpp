@@ -45,6 +45,9 @@ void ChunkManager::addNPC(int posX, int posY, uint64_t instanceID, int32_t id) {
 
     Chunk* chunk = chunks[pos];
 
+    if (newChunkUsed)
+        NPCManager::NPCs[id]->currentChunks.push_back(chunk);
+
     chunk->NPCs.insert(id);
 
     // has to be done to stop chunk desyncs
@@ -65,7 +68,11 @@ void ChunkManager::addPlayer(int posX, int posY, uint64_t instanceID, CNSocket* 
 
     Chunk* chunk = chunks[pos];
 
+    if (newChunkUsed)
+        PlayerManager::players[sock].currentChunks.push_back(chunk);
+
     chunk->players.insert(sock);
+
 
     // has to be done to stop chunk desyncs
     if (newChunkUsed)
