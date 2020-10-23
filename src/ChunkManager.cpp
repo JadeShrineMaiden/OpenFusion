@@ -14,6 +14,10 @@ void ChunkManager::newChunk(std::tuple<int, int, uint64_t> pos) {
     chunk->players = std::set<CNSocket*>();
     chunk->NPCs = std::set<int32_t>();
 
+    chunks[pos] = chunk;
+}
+
+void ChunkManager::newChunkTransmit(Chunk* chunk, std::tuple<int, int, uint64_t> pos) {
     // add the new chunk to every player and mob that's near it
     for (Chunk *c : grabChunks(pos)) {
         if (c == chunk)
@@ -25,32 +29,46 @@ void ChunkManager::newChunk(std::tuple<int, int, uint64_t> pos) {
         for (int32_t id : c->NPCs)
             NPCManager::NPCs[id]->currentChunks.push_back(chunk);
     }
-
-    chunks[pos] = chunk;
 }
 
 void ChunkManager::addNPC(int posX, int posY, uint64_t instanceID, int32_t id) {
     std::tuple<int, int, uint64_t> pos = grabChunk(posX, posY, instanceID);
 
+    bool newChunkUsed = false;
+
     // make chunk if it doesn't exist!
-    if (chunks.find(pos) == chunks.end())
+    if (chunks.find(pos) == chunks.end()) {
         newChunk(pos);
+        newChunkUsed = true;
+    }
 
     Chunk* chunk = chunks[pos];
 
     chunk->NPCs.insert(id);
+
+    // has to be done to stop chunk desyncs
+    if (newChunkUsed)
+        newChunkTransmit(chunk, pos);
 }
 
 void ChunkManager::addPlayer(int posX, int posY, uint64_t instanceID, CNSocket* sock) {
     std::tuple<int, int, uint64_t> pos = grabChunk(posX, posY, instanceID);
 
+    bool newChunkUsed = false;
+
     // make chunk if it doesn't exist!
-    if (chunks.find(pos) == chunks.end())
+    if (chunks.find(pos) == chunks.end()) {
         newChunk(pos);
+        newChunkUsed = true;
+    }
 
     Chunk* chunk = chunks[pos];
 
     chunk->players.insert(sock);
+
+    // has to be done to stop chunk desyncs
+    if (newChunkUsed)
+        newChunkTransmit(chunk, pos);
 }
 
 bool ChunkManager::removePlayer(std::tuple<int, int, uint64_t> chunkPos, CNSocket* sock) {
