@@ -160,8 +160,11 @@ std::vector<Chunk*> ChunkManager::grabChunks(std::tuple<int, int, uint64_t> chun
             // if chunk exists, add it to the vector
             if (checkChunk(pos))
                 chnks.push_back(chunks[pos]);
-            else if (sock != nullptr)
-                ChatManager::sendServerMessage(sock, "[CHUNK] Chunk (" + std::to_string(x+i) + ", " + std::to_string(y+z) + ") does not exist");
+            else if (sock != nullptr) {
+                Player* plr = PlayerManager::getPlayer(sock);
+                if (plr->debugger > 1)
+                    ChatManager::sendServerMessage(sock, "[CHUNK] Chunk (" + std::to_string(x+i) + ", " + std::to_string(y+z) + ") does not exist");
+            }
         }
     }
 
@@ -187,10 +190,13 @@ std::vector<Chunk*> ChunkManager::getDeltaChunks(std::vector<Chunk*> from, std::
         if (!found) {
             delta.push_back(i);
             if (sock != nullptr) {
-                if (opt == 1)
-                    ChatManager::sendServerMessage(sock, "[CHUNK] Removed chunk ("); //+ std::to_string(i) + ", " + std::to_string(z) + ") in view");
-                if (opt == 2)
-                    ChatManager::sendServerMessage(sock, "[CHUNK] Added chunk ("); //+ std::to_string(i) + ", " + std::to_string(z) + ") in view");
+                Player* plr = PlayerManager::getPlayer(sock);
+                if (plr->debugger > 2) {
+                    if (opt == 1)
+                        ChatManager::sendServerMessage(sock, "[CHUNK] Removed chunk ("); //+ std::to_string(i) + ", " + std::to_string(z) + ") in view");
+                    if (opt == 2)
+                        ChatManager::sendServerMessage(sock, "[CHUNK] Added chunk ("); //+ std::to_string(i) + ", " + std::to_string(z) + ") in view");
+                }
             }
         }
     }

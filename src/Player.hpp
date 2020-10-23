@@ -36,6 +36,7 @@ struct Player {
     int64_t aSkywayLocationFlag[2];
     int32_t iConditionBitFlag;
     int8_t iSpecialState;
+    int debugger;
 
     int x, y, z, angle;
     int lastX, lastY, lastZ, lastAngle;

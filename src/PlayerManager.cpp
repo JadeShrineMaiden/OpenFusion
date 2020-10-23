@@ -105,7 +105,7 @@ bool PlayerManager::removePlayerFromChunks(std::vector<Chunk*> chunks, CNSocket*
                 exitBusData.eTT = 3;
                 exitBusData.iT_ID = id;
                 sock->sendPacket((void*)&exitBusData, P_FE2CL_TRANSPORTATION_EXIT, sizeof(sP_FE2CL_TRANSPORTATION_EXIT));
-                ChatManager::sendServerMessage(sock, "[CHUNK] BUS of id: " + std::to_string(id) + " was removed from view.");
+                //ChatManager::sendServerMessage(sock, "[CHUNK] BUS of id: " + std::to_string(id) + " was removed from view.");
                 break;
             default:
                 INITSTRUCT(sP_FE2CL_NPC_EXIT, exitData);
@@ -141,7 +141,7 @@ void PlayerManager::addPlayerToChunks(std::vector<Chunk*> chunks, CNSocket* sock
                 INITSTRUCT(sP_FE2CL_TRANSPORTATION_ENTER, enterBusData);
                 enterBusData.AppearanceData = { 3, npc->appearanceData.iNPC_ID, npc->appearanceData.iNPCType, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ };
                 sock->sendPacket((void*)&enterBusData, P_FE2CL_TRANSPORTATION_ENTER, sizeof(sP_FE2CL_TRANSPORTATION_ENTER));
-                ChatManager::sendServerMessage(sock, "[CHUNK] BUS of id: " + std::to_string(id) + " was added to view.");
+                //ChatManager::sendServerMessage(sock, "[CHUNK] BUS of id: " + std::to_string(id) + " was added to view.");
                 break;
             default:
                 INITSTRUCT(sP_FE2CL_NPC_ENTER, enterData);
@@ -214,7 +214,8 @@ void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y, uint64_t ins
     // add player to chunk
     std::vector<Chunk*> allChunks = ChunkManager::grabChunks(newPos, sock);
     
-    ChatManager::sendServerMessage(sock, "[CHUNK] Moved to chunk (" + std::to_string(X / (settings::VIEWDISTANCE / 3)) + ", " + std::to_string(Y / (settings::VIEWDISTANCE / 3)) + ")");
+    if (view.plr->debugger > 1)
+        ChatManager::sendServerMessage(sock, "[CHUNK] Moved to chunk (" + std::to_string(X / (settings::VIEWDISTANCE / 3)) + ", " + std::to_string(Y / (settings::VIEWDISTANCE / 3)) + ")");
 
     Chunk *chunk = nullptr;
     if (ChunkManager::checkChunk(view.chunkPos))
@@ -231,6 +232,19 @@ void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y, uint64_t ins
     ChunkManager::addPlayer(X, Y, view.plr->instanceID, sock); // takes care of adding the player to the chunk if it exists or not
     view.chunkPos = newPos;
     view.currentChunks = allChunks;
+    
+    bool check = false;
+    std::vector<Chunk*> chonky = ChunkManager::grabChunks(newPos, sock);
+    for (Chunk *chunk : chonky) {
+        for (CNSocket *s : chunk->players) {
+            Player *plor = s->plr;
+            if (view.plr == plor)
+                check = true;
+        }
+    }
+    
+    if (check == false)
+        ChatManager::sendServerMessage(sock, "[ERROR] The chunk you just entered does not contain you, report this to an admin.");
 }
 
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I) {
