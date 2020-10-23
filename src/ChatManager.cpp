@@ -435,6 +435,48 @@ void tasksCommand(std::string full, std::vector<std::string>& args, CNSocket* so
     }
 }
 
+void debugChunkCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+
+    Player* plr = PlayerManager::getPlayer(sock);
+    
+    if (args.size() < 2) {
+        ChatManager::sendServerMessage(sock, "[CHUNK] Define verbosity human!");
+        ChatManager::sendServerMessage(sock, "[CHUNK] Usage: /debugchunk <verbosity>");
+        return;
+    }
+    
+    char* instanceS;
+    int instance = std::strtol(args[1].c_str(), &instanceS, 10);
+    if (*instanceS) {
+        ChatManager::sendServerMessage(sock, "[NPCI] Invalid instance ID: " + args[1]);
+        return;
+    }
+    // forgive me, im lazy and in a hurry
+
+    plr->debugger = instance;
+}
+
+void getChunkCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player* pler = PlayerManager::getPlayer(sock);
+    std::tuple<int, int, uint64_t> newPos = ChunkManager::grabChunk(pler->x, pler->y, pler->instanceID);
+    std::vector<Chunk*> chonky = ChunkManager::grabChunks(newPos, sock);
+    
+    for (Chunk *chunk : chonky) {
+        for (CNSocket *s : chunk->players) {
+            Player *plr = s->plr;
+            ChatManager::sendServerMessage(sock, "[PLAYER] " + U16toU8(plr->PCStyle.szFirstName) + " " + U16toU8(plr->PCStyle.szLastName));
+        }
+        
+        for (int n : chunk->NPCs) {
+            if (MobManager::Mobs.find(n) == MobManager::Mobs.end()) {
+                ChatManager::sendServerMessage(sock, "[NPC] " + std::to_string(n));
+                continue;
+            }
+            ChatManager::sendServerMessage(sock, "[MOB] " + std::to_string(n));
+        }
+    }
+}
+
 void flushCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     TableData::flush();
     ChatManager::sendServerMessage(sock, "Wrote gruntwork to " + settings::GRUNTWORKJSON);
@@ -460,6 +502,8 @@ void ChatManager::init() {
     registerCommand("refresh", 100, refreshCommand, "teleport yourself to your current location");
     registerCommand("minfo", 30, minfoCommand, "show details of the current mission and task.");
     registerCommand("tasks", 30, tasksCommand, "list all active missions and their respective task ids.");
+    registerCommand("chunkDebugMode", 100, debugChunkCommand, "debug chunks.");
+    registerCommand("getChunk", 100, getChunkCommand, "print the contents of the chunk.");
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {

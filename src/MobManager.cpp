@@ -6,6 +6,7 @@
 #include "MissionManager.hpp"
 #include "GroupManager.hpp"
 #include "TransportManager.hpp"
+#include "ChatManager.hpp"
 
 #include <cmath>
 #include <limits.h>
@@ -808,6 +809,24 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
         // fm patch/lake damage
         if (plr->iConditionBitFlag & CSB_BIT_INFECTION)
             dealGooDamage(sock, PC_MAXHEALTH(plr->level) * 3 / 20);
+        
+        if (plr->debugger > 0) {
+            bool check = false;
+            std::tuple<int, int, uint64_t> newPos = ChunkManager::grabChunk(plr->x, plr->y, plr->instanceID);
+            std::vector<Chunk*> chonky = ChunkManager::grabChunks(newPos, sock);
+            for (Chunk *chunk : chonky) {
+                for (CNSocket *s : chunk->players) {
+                    Player *plor = s->plr;
+                    if (plr == plor)
+                        check = true;
+                }
+            }
+        
+            if (check == false)
+                ChatManager::sendServerMessage(sock, "[ERROR] The chunk you just entered does not contain you, report this to an admin.");
+            //else
+                //ChatManager::sendServerMessage(sock, "[CHUNK] Checked.");
+        }
 
         // heal
         if (currTime - lastHealTime >= 6000 && !plr->inCombat && plr->HP < PC_MAXHEALTH(plr->level)) {
