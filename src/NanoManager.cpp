@@ -321,15 +321,15 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
     if (SkillTable[skillID].drainType == 2) {
         int *targetData = findTargets(plr, skillID);
 
-    int boost = 0;
-    if (getNanoBoost(plr))
-        boost = 1;
+        int boost = 0;
+        if (getNanoBoost(plr))
+            boost = 1;
 
         for (auto& pwr : NanoPowers) {
             if (pwr.skillType == SkillTable[skillID].skillType) {
                 resp.eCSTB___Add = 1; // the part that makes nano go ZOOMAZOOM
                 plr->nanoDrainRate = SkillTable[skillID].batteryUse[boost*3];
-                
+
                 pwr.handle(sock, targetData, nanoID, skillID, 0, SkillTable[skillID].powerIntensity[boost]);
             }
         }
