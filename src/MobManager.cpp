@@ -1681,6 +1681,7 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
             pkt.eTBU = 1; // eTimeBuffUpdate
             pkt.eTBT = 2;
             pkt.iConditionBitFlag = plr->iConditionBitFlag |= bitFlag;
+            pkt.TimeBuff.iValue = amount;
             sock->sendPacket((void*)&pkt, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
         }
 
@@ -1834,8 +1835,8 @@ bool doBatteryDrain(Mob *mob, sSkillResult_BatteryDrain *respdata, int i, int32_
         respdata[i].iDrainN = amount * (18 + (int)mob->data["m_iNpcLevel"]) / 36;
     }
 
-    respdata[i].iBatteryW = plr->batteryW -= respdata[i].iDrainW;
-    respdata[i].iBatteryN = plr->batteryN -= respdata[i].iDrainN;
+    respdata[i].iBatteryW = plr->batteryW -= (respdata[i].iDrainW<plr->batteryW)?respdata[i].iDrainW:plr->batteryW;
+    respdata[i].iBatteryN = plr->batteryN -= (respdata[i].iDrainN<plr->batteryN)?respdata[i].iDrainN:plr->batteryN;
     respdata[i].iStamina = plr->Nanos[plr->activeNano].iStamina;
     respdata[i].iConditionBitFlag = plr->iConditionBitFlag;
 
