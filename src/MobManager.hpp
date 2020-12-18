@@ -19,6 +19,13 @@ enum class MobState {
     DEAD
 };
 
+enum class MobPursuitType {
+    NONE,
+    PLAYER,
+    NPC,
+    MOB
+};
+
 struct Mob : public BaseNPC {
     // general
     MobState state;
@@ -44,11 +51,15 @@ struct Mob : public BaseNPC {
     int roamX, roamY, roamZ;
 
     // combat
+    MobPursuitType targetType;
     CNSocket *target = nullptr;
+    int targetNpc = -1;
     time_t nextAttack = 0;
     time_t lastDrainTime = 0;
     int skillStyle = -1; // -1 for nothing, 0-2 for corruption, -2 for eruption
     int hitX, hitY, hitZ; // for use in ability targeting
+    int resist = 1;
+    int boost = 1;
 
     // drop
     int dropType;
@@ -73,6 +84,7 @@ struct Mob : public BaseNPC {
         idleRange = (int)data["m_iIdleRange"];
         dropType = data["m_iDropType"];
         level = data["m_iNpcLevel"];
+        team = 2;
 
         roamX = spawnX = appearanceData.iX;
         roamY = spawnY = appearanceData.iY;
@@ -155,6 +167,7 @@ namespace MobManager {
 
     void deadStep(Mob*, time_t);
     void combatStep(Mob*, time_t);
+    void combatStepNpc(Mob*, time_t);
     void retreatStep(Mob*, time_t);
     void roamingStep(Mob*, time_t);
 
@@ -165,7 +178,8 @@ namespace MobManager {
     void dealGooDamage(CNSocket *sock, int amount);
 
     void npcAttackPc(Mob *mob, time_t currTime);
-    int hitMob(CNSocket *sock, Mob *mob, int damage);
+    int hitMob(Mob *mob, int damage);
+    int hitMob(Mob *mob, int damage, CNSocket *sock);
     void killMob(CNSocket *sock, Mob *mob);
     void giveReward(CNSocket *sock, Mob *mob);
     void getReward(sItemBase *reward, MobDrop *drop, MobDropChance *chance);
@@ -189,4 +203,5 @@ namespace MobManager {
     void followToCombat(Mob *mob);
     void useAbilities(Mob *mob, time_t currTime);
     void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, int style);
+    void npcAttackNpcs(Mob *mob, time_t currTime);
 }

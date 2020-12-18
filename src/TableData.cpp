@@ -252,6 +252,7 @@ void TableData::init() {
             Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], td, nextId);
 
             NPCManager::NPCs[nextId] = tmp;
+            NPCManager::NPCs[nextId]->team = td["m_iTeam"];
             MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
             NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
 
@@ -259,7 +260,6 @@ void TableData::init() {
         }
 
         // mob groups
-        // single mobs
         for (nlohmann::json::iterator _group = groupData.begin(); _group != groupData.end(); _group++) {
             auto leader = _group.value();
             auto td = NPCManager::NPCData[(int)leader["iNPCType"]];
@@ -268,6 +268,7 @@ void TableData::init() {
             Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], td, nextId);
 
             NPCManager::NPCs[nextId] = tmp;
+            NPCManager::NPCs[nextId]->team = td["m_iTeam"];
             MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
             NPCManager::updateNPCPosition(nextId, leader["iX"], leader["iY"], leader["iZ"], instanceID, leader["iAngle"]);
 

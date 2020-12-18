@@ -8,6 +8,7 @@ public:
     sNPCAppearanceData appearanceData;
     NPCClass npcClass;
     uint64_t instanceID;
+    int team;
     ChunkPos chunkPos;
     std::set<Chunk*>* viewableChunks;
 
@@ -28,6 +29,7 @@ public:
         npcClass = NPCClass::NPC_BASE;
 
         instanceID = iID;
+        team = 1;
 
         chunkPos = std::make_tuple(0, 0, 0);
         viewableChunks = new std::set<Chunk*>();

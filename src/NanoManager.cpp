@@ -567,7 +567,7 @@ bool doDebuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t target
     }
 
     Mob* mob = MobManager::Mobs[targetID];
-    MobManager::hitMob(sock, mob, 0);
+    MobManager::hitMob(mob, 0, sock);
 
     respdata[i].eCT = 4;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
@@ -630,7 +630,7 @@ bool doDamageNDebuff(CNSocket *sock, sSkillResult_Damage_N_Debuff *respdata, int
 
     Mob* mob = MobManager::Mobs[targetID];
 
-    MobManager::hitMob(sock, mob, 0); // just to gain aggro
+    MobManager::hitMob(mob, 0, sock); // just to gain aggro
 
     respdata[i].eCT = 4;
     respdata[i].iDamage = duration / 10;
@@ -692,7 +692,7 @@ bool doDamage(CNSocket *sock, sSkillResult_Damage *respdata, int i, int32_t targ
 
     Player *plr = PlayerManager::getPlayer(sock);
 
-    int damage = MobManager::hitMob(sock, mob, PC_MAXHEALTH(plr->level) * amount / 2000 + mob->appearanceData.iHP * amount / 2000);
+    int damage = MobManager::hitMob(mob, PC_MAXHEALTH(plr->level) * amount / 2000 + mob->appearanceData.iHP * amount / 2000, sock);
 
     respdata[i].eCT = 4;
     respdata[i].iDamage = damage;
@@ -740,7 +740,7 @@ bool doLeech(CNSocket *sock, sSkillResult_Heal_HP *healdata, int i, int32_t targ
     }
     Mob* mob = MobManager::Mobs[targetID];
 
-    int damage = MobManager::hitMob(sock, mob, amount * 2);
+    int damage = MobManager::hitMob(mob, amount * 2, sock);
 
     damagedata->eCT = 4;
     damagedata->iDamage = damage;

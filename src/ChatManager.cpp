@@ -712,6 +712,66 @@ void unhideCommand(std::string full, std::vector<std::string>& args, CNSocket* s
     ChatManager::sendServerMessage(sock, "[HIDE] Successfully un-hidden from the map.");
 }
 
+void summonSCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    if (args.size() < 3) {
+        ChatManager::sendServerMessage(sock, "[Summon] Too few arguments");
+        ChatManager::sendServerMessage(sock, "[Summon] Usage: /summonS <type id> <team> <resist> <boost> <disguise id> <hp override>");
+        return;
+    }
+
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    char *rest;
+    int type = std::strtol(args[1].c_str(), &rest, 10);
+    int team = std::strtol(args[2].c_str(), &rest, 10);
+    int resist = 1;
+    int boost = 1;
+    int disguiseid = type;
+    int hpoverride = -1;
+
+    if (args.size() > 3)
+        resist = std::strtol(args[3].c_str(), &rest, 10);
+    if (args.size() > 4)
+        boost = std::strtol(args[4].c_str(), &rest, 10);
+    if (args.size() > 5)
+        disguiseid = std::strtol(args[5].c_str(), &rest, 10);
+    if (args.size() > 6)
+        hpoverride = std::strtol(args[6].c_str(), &rest, 10);
+    
+    if (resist < 1)
+        resist = 1;
+
+    if (*rest) {
+        ChatManager::sendServerMessage(sock, "Invalid NPC number: " + args[1]);
+        return;
+    }
+
+    // permission & sanity check
+    if (plr == nullptr || type >= 3314)
+        return;
+
+    assert(NPCManager::nextId < INT32_MAX);
+
+    BaseNPC *npc = nullptr;
+    if (team > 0) {
+        npc = new Mob(plr->x, plr->y, plr->z, plr->instanceID, type, NPCManager::NPCData[type], NPCManager::nextId++);
+        npc->appearanceData.iAngle = (plr->angle + 180) % 360;
+
+        NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
+        MobManager::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
+
+        ((Mob*)npc)->team = team;
+        ((Mob*)npc)->resist = resist;
+        ((Mob*)npc)->boost = boost;
+        ((Mob*)npc)->appearanceData.iNPCType = disguiseid;
+        if (hpoverride >= 0)
+            ((Mob*)npc)->appearanceData.iHP = hpoverride;
+        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z, plr->instanceID, npc->appearanceData.iAngle);
+    } else {
+        return;
+    }
+}
+
 void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
@@ -743,6 +803,7 @@ void ChatManager::init() {
     registerCommand("lair", 50, lairUnlockCommand, "get the required mission for the nearest fusion lair");
     registerCommand("hide", 100, hideCommand, "hide yourself from the global player map");
     registerCommand("unhide", 100, unhideCommand, "un-hide yourself from the global player map");
+    registerCommand("summonS", 30, summonSCommand, "special npc summon");
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {
