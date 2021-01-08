@@ -518,6 +518,7 @@ void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_PC_WARP_USE_NPC* warpNpc = (sP_CL2FE_REQ_PC_WARP_USE_NPC*)data->buf;
+    std::cout << warpNpc->iWarpID << std::endl;
     handleWarp(sock, warpNpc->iWarpID);
 }
 
@@ -530,6 +531,10 @@ void NPCManager::npcWarpTimeMachine(CNSocket* sock, CNPacketData* data) {
 
 void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     Player* plr = PlayerManager::getPlayer(sock);
+
+    if (warpId == 173 && plr->instanceID == 119)
+        warpId = 666; // special injustice foe lair warp
+
     // sanity check
     if (Warps.find(warpId) == Warps.end())
         return;

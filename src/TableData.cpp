@@ -87,6 +87,8 @@ void TableData::init() {
             int warpID = warp["m_iWarpNumber"];
             NPCManager::Warps[warpID] = warpLoc;
         }
+        WarpLocation warpLoc = { 702388, 775958, -7425, 666, 1, 0, 0};
+        NPCManager::Warps[666] = warpLoc;
 
         std::cout << "[INFO] Populated " << NPCManager::Warps.size() << " Warps" << std::endl;
 

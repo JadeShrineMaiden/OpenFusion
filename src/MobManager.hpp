@@ -27,6 +27,7 @@ struct Mob : public BaseNPC {
     int spawnY;
     int spawnZ;
     int level;
+    float healthDivider = 1; // this allows us to customise mob health
 
     std::unordered_map<int32_t,time_t> unbuffTimes;
 
@@ -49,6 +50,7 @@ struct Mob : public BaseNPC {
     time_t lastDrainTime = 0;
     int skillStyle = -1; // -1 for nothing, 0-2 for corruption, -2 for eruption
     int hitX, hitY, hitZ; // for use in ability targeting
+    float damageResistance = 1.0;
 
     // drop
     int dropType;
@@ -191,4 +193,10 @@ namespace MobManager {
     void useAbilities(Mob *mob, time_t currTime);
     void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, int style);
     void enterCombat(CNSocket *sock, Mob *mob);
+
+    void injusticeCharge(Mob *mob, time_t currTime, Player *plr);
+    void injusticeEruption(Mob *mob, time_t currTime, Player *plr);
+    void injusticeMegaLeech(Mob *mob, time_t currTime);
+    void injusticeCombat(Mob *mob, time_t currTime);
+    void injusticeStep(Mob *mob, time_t currTime);
 }

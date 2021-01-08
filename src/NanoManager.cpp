@@ -654,7 +654,7 @@ bool doDamageNDebuff(CNSocket *sock, sSkillResult_Damage_N_Debuff *respdata, int
     respdata[i].eCT = 4;
     respdata[i].iDamage = duration / 10;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
-    respdata[i].iHP = mob->appearanceData.iHP;
+    respdata[i].iHP = (mob->appearanceData.iHP - 1) / mob->healthDivider + 1;
     respdata[i].bProtected = 1;
     if (mob->skillStyle < 0 && mob->state != MobState::RETREAT 
     && !(mob->appearanceData.iConditionBitFlag & CSB_BIT_FREEDOM)) { // only debuff if the enemy is not retreating, casting corruption or in freedom
@@ -717,7 +717,7 @@ bool doDamage(CNSocket *sock, sSkillResult_Damage *respdata, int i, int32_t targ
     respdata[i].eCT = 4;
     respdata[i].iDamage = damage;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
-    respdata[i].iHP = mob->appearanceData.iHP;
+    respdata[i].iHP = (mob->appearanceData.iHP - 1) / mob->healthDivider + 1;
 
     return true;
 }
@@ -765,7 +765,7 @@ bool doLeech(CNSocket *sock, sSkillResult_Heal_HP *healdata, int i, int32_t targ
     damagedata->eCT = 4;
     damagedata->iDamage = damage;
     damagedata->iID = mob->appearanceData.iNPC_ID;
-    damagedata->iHP = mob->appearanceData.iHP;
+    damagedata->iHP = (mob->appearanceData.iHP - 1) / mob->healthDivider + 1;
 
     return true;
 }
