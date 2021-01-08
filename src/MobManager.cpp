@@ -2255,7 +2255,7 @@ void MobManager::injusticeCombat(Mob *mob, time_t currTime) {
     std::unordered_map<int32_t, time_t>::iterator it = mob->unbuffTimes.begin();
     while (it != mob->unbuffTimes.end()) {
 
-        if (currTime >= it->second * mob->appearanceData.iHP / mob->maxHealth) {
+        if (currTime >= it->second || mob->skillStyle < -5) {
             mob->appearanceData.iConditionBitFlag &= ~it->first;
 
             INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
@@ -2263,7 +2263,7 @@ void MobManager::injusticeCombat(Mob *mob, time_t currTime) {
             pkt1.iID = mob->appearanceData.iNPC_ID;
             pkt1.iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
             NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
-                    
+
             it = mob->unbuffTimes.erase(it);
         } else {
             it++;
@@ -2337,13 +2337,23 @@ void MobManager::injusticeStep(Mob *mob, time_t currTime) {
         aggroCheck(mob, currTime);
         break;
     case MobState::COMBAT:
+        if (mob->skillStyle == -8)
+            mob->skillStyle = -1;
         if (mob->appearanceData.iHP > mob->maxHealth - 8410 && mob->skillStyle > -4)
             combatStep(mob, currTime);
         else
             injusticeCombat(mob, currTime);
         break;
     case MobState::RETREAT:
-        aggroCheck(mob, currTime);
+        for (auto it = mob->viewableChunks->begin(); it != mob->viewableChunks->end(); it++) {
+            Chunk* chunk = *it;
+            for (CNSocket *s : chunk->players)
+                mob->target = s;
+        }
+        if (mob->target != nullptr) {
+            mob->state = MobState::COMBAT;
+            return;
+        }
         retreatStep(mob, currTime);
         break;
     case MobState::DEAD:
