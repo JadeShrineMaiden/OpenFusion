@@ -967,6 +967,12 @@ int ItemManager::getCrateItem(sItemBase& result, int itemSetId, int rarity, int 
     result.iType = item->first.second;
     result.iOpt = 1;
 
+#ifdef ACADEMY
+    //signed ace jacket drop
+    if (result.iID == 1 && result.iType == 1 && rand() % 50 == 0)
+        result.iID = 499;
+#endif
+
     return 0;
 }
 
