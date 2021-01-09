@@ -14,7 +14,8 @@
 
 // placeholder; there's only one trigger type right now
 enum Trigger {
-    ON_KILLED
+    ON_KILLED,
+    ON_COMBAT
 };
 
 typedef void (*NPCEventHandler)(CNSocket*, BaseNPC*);
