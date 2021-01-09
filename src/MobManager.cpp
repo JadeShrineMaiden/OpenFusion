@@ -399,7 +399,7 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
     mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
 
     // check for the edge case where hitting the mob did not aggro it
-    if (sock != nullptr) {
+    if (sock != nullptr && mob->skillStyle < -3) {
         Player* plr = PlayerManager::getPlayer(sock);
 
         int rolledBoosts = rand();
@@ -1920,7 +1920,7 @@ bool doLeech(Mob *mob, sSkillResult_Heal_HP *healdata, int i, int32_t targetID, 
 
     healdata->eCT = 4;
     healdata->iID = mob->appearanceData.iNPC_ID;
-    healdata->iHP = mob->appearanceData.iHP;
+    healdata->iHP = (mob->appearanceData.iHP - 1) / mob->healthDivider + 1;
     healdata->iHealHP = healedAmount;
 
     int damage = healedAmount;
@@ -2050,21 +2050,41 @@ std::vector<MobPower> MobPowers = {
 void MobManager::injusticeCharge(Mob *mob, time_t currTime, Player *plr) {
     mob->damageResistance *= 0.5;
 
+    if (mob->appearanceData.iHP < 4207) // kamikaze phase defense
+        mob->damageResistance *= 20;
+
     if (mob->nextMovement > currTime)
         return;
 
     if (mob->nextAttack == 0 && mob->nextMovement < currTime) {
         int dist = hypot(mob->appearanceData.iX - plr->x, mob->appearanceData.iY - plr->y);
         int speed = dist + 750;
-        if (mob->skillStyle == -7)
+        if (mob->skillStyle == -7) {
             speed += 500;
+            if (mob->appearanceData.iHP < 4207)
+                speed -= 1250;
+        }
         int targetX = mob->appearanceData.iX + (plr->x - mob->appearanceData.iX) * speed / dist;
         int targetY = mob->appearanceData.iY + (plr->y - mob->appearanceData.iY) * speed / dist;
+
         mob->hitX = plr->x;
         mob->hitY = plr->y;
         mob->hitZ = mob->appearanceData.iZ;
 
+        // don't go out of bounds
+        if (targetX > 705405)
+            targetX = 705405;
+        if (targetX < 697353)
+            targetX = 697353;
+        if (targetY > 786692)
+            targetY = 786692;
+        if (targetY < 783255)
+            targetY = 783255;
+
         NPCManager::updateNPCPosition(mob->appearanceData.iNPC_ID, targetX, targetY, mob->appearanceData.iZ, mob->instanceID, mob->appearanceData.iAngle);
+
+        if (mob->appearanceData.iHP < 4207)
+            speed *= 2;
 
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
         pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
@@ -2078,8 +2098,12 @@ void MobManager::injusticeCharge(Mob *mob, time_t currTime, Player *plr) {
         mob->nextAttack = currTime + 1000 * dist / speed;
     } else if (mob->nextAttack < currTime) {
         int skillID = 112; // stun
-        if (mob->skillStyle == -7)
-            skillID = 140; // leech
+        if (mob->skillStyle == -7) {
+            if (mob->appearanceData.iHP < 4207)
+                skillID = (int)mob->data["m_iMegaType"]; // kamikaze phase
+            else
+                skillID = 140; // leech
+        }
         std::vector<int> targetData = {0, 0, 0, 0, 0};
 
         // find the players within range of ability
@@ -2092,6 +2116,10 @@ void MobManager::injusticeCharge(Mob *mob, time_t currTime, Player *plr) {
                     continue;
 
                 int distance = hypot(mob->hitX - plr->x, mob->hitY - plr->y);
+
+                if (skillID == (int)mob->data["m_iMegaType"])
+                    distance -= 130;
+
                 if (distance < 170) {
                     targetData[0] += 1;
                     targetData[targetData[0]] = plr->iID;
@@ -2107,8 +2135,18 @@ void MobManager::injusticeCharge(Mob *mob, time_t currTime, Player *plr) {
         for (auto& pwr : MobPowers)
             if (pwr.skillType == NanoManager::SkillTable[skillID].skillType)
                 pwr.handle(mob, targetData, skillID, NanoManager::SkillTable[skillID].durationTime[0], NanoManager::SkillTable[skillID].powerIntensity[0]);
+
         mob->nextAttack = 0;
         mob->nextMovement = currTime + 500 + (rand() % 500) * mob->appearanceData.iHP / mob->maxHealth;
+
+        if (skillID == (int)mob->data["m_iMegaType"]) { // kamikaze phase damage
+            mob->appearanceData.iHP -= 250;
+            skillID = 113; // empty heal
+            for (auto& pwr : MobPowers)
+                if (pwr.skillType == NanoManager::SkillTable[skillID].skillType)
+                    pwr.handle(mob, targetData, skillID, NanoManager::SkillTable[skillID].durationTime[0], 0);
+            mob->nextMovement = currTime + 1500;
+        }
     }
 }
 
@@ -2162,6 +2200,7 @@ void MobManager::injusticeEruption(Mob *mob, time_t currTime, Player *plr) {
 }
 
 void MobManager::injusticeMegaLeech(Mob *mob, time_t currTime) {
+    mob->damageResistance *= 2;
     if (mob->nextMovement > currTime)
         return;
 
@@ -2176,9 +2215,11 @@ void MobManager::injusticeMegaLeech(Mob *mob, time_t currTime) {
         pkt.iValue3 = plr->z;
         NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_SKILL_READY, sizeof(sP_FE2CL_NPC_SKILL_READY));
         mob->nextAttack = currTime + 500;
+        if (mob->appearanceData.iHP < 4207) // kamikaze phase attack
+            mob->nextAttack -= 300;
         return;
     } else if (mob->nextAttack < currTime) {
-        int skillID = (int)mob->data["m_iMegaType"];
+        int skillID = (int)mob->data["m_iActiveSkill1"];
         std::vector<int> targetData = {1, 0, 0, 0, 0};
 
         // leech
@@ -2202,6 +2243,11 @@ void MobManager::injusticeMegaLeech(Mob *mob, time_t currTime) {
         if (rand() % 10 == 0) {
             mob->skillStyle = -7;
             mob->nextMovement = currTime + 1000;
+            int skillID = 160; // freedom
+            std::vector<int> targetData = {1, mob->appearanceData.iNPC_ID, 0, 0, 0};
+            for (auto& pwr : MobPowers)
+                if (pwr.skillType == NanoManager::SkillTable[skillID].skillType)
+                    pwr.handle(mob, targetData, skillID, NanoManager::SkillTable[skillID].durationTime[0], NanoManager::SkillTable[skillID].powerIntensity[0]);
         }
         mob->nextAttack = 0;
     }
@@ -2255,7 +2301,7 @@ void MobManager::injusticeCombat(Mob *mob, time_t currTime) {
     std::unordered_map<int32_t, time_t>::iterator it = mob->unbuffTimes.begin();
     while (it != mob->unbuffTimes.end()) {
 
-        if (currTime >= it->second || mob->skillStyle < -5) {
+        if (currTime >= it->second) {
             mob->appearanceData.iConditionBitFlag &= ~it->first;
 
             INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
@@ -2272,6 +2318,13 @@ void MobManager::injusticeCombat(Mob *mob, time_t currTime) {
 
     // skip attack if stunned or asleep
     if (mob->appearanceData.iConditionBitFlag & (CSB_BIT_STUN|CSB_BIT_MEZ)) {
+        if (mob->skillStyle < -4 && !(mob->appearanceData.iConditionBitFlag & CSB_BIT_FREEDOM)) {
+            int skillID = 160; // freedom out of there
+            std::vector<int> targetData = {1, mob->appearanceData.iNPC_ID, 0, 0, 0};
+            for (auto& pwr : MobPowers)
+                if (pwr.skillType == NanoManager::SkillTable[skillID].skillType)
+                    pwr.handle(mob, targetData, skillID, NanoManager::SkillTable[skillID].durationTime[0], NanoManager::SkillTable[skillID].powerIntensity[0]);
+        }
         mob->nextAttack = 0;
         return;
     }
@@ -2313,19 +2366,30 @@ void MobManager::injusticeCombat(Mob *mob, time_t currTime) {
         if (rand() % 50 == 0) {
             mob->skillStyle = -6;
             mob->nextMovement = currTime + 1000;
+            mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_FREEDOM;
+
+            INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
+            pkt1.eCT = 2;
+            pkt1.iID = mob->appearanceData.iNPC_ID;
+            pkt1.iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
+            NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
         }
     }
 
 }
 
 void MobManager::injusticeStep(Mob *mob, time_t currTime) {
-    mob->damageResistance = 1;
+    mob->damageResistance = 0;
 
     for (auto it = mob->viewableChunks->begin(); it != mob->viewableChunks->end(); it++) {
         Chunk* chunk = *it;
         for (CNSocket *s : chunk->players)
             mob->damageResistance += 1;
     }
+
+    if (mob->damageResistance < 1)
+        mob->damageResistance = 1;
+
     mob->healthDivider = 10;
     mob->maxHealth = 42070;
     switch (mob->state) {
@@ -2334,6 +2398,7 @@ void MobManager::injusticeStep(Mob *mob, time_t currTime) {
         break;
     case MobState::ROAMING:
         mob->appearanceData.iHP = mob->maxHealth;
+        mob->dropType = 6666;
         aggroCheck(mob, currTime);
         break;
     case MobState::COMBAT:
@@ -2359,7 +2424,6 @@ void MobManager::injusticeStep(Mob *mob, time_t currTime) {
     case MobState::DEAD:
         if (mob->skillStyle != -8) {
             mob->skillStyle = -8;
-            mob->dropType = 6666;
             for (auto it = mob->viewableChunks->begin(); it != mob->viewableChunks->end(); it++) {
                 Chunk* chunk = *it;
                 for (CNSocket *s : chunk->players)

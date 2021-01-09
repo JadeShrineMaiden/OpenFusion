@@ -712,7 +712,7 @@ bool doDamage(CNSocket *sock, sSkillResult_Damage *respdata, int i, int32_t targ
 
     Player *plr = PlayerManager::getPlayer(sock);
 
-    int damage = MobManager::hitMob(sock, mob, PC_MAXHEALTH(plr->level) * amount / 1000 + mob->maxHealth * amount / 2000);
+    int damage = MobManager::hitMob(sock, mob, PC_MAXHEALTH(plr->level) * amount / 1000 + mob->appearanceData.iHP * amount / 2000);
 
     respdata[i].eCT = 4;
     respdata[i].iDamage = damage;
