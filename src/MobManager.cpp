@@ -399,7 +399,7 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
     mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
 
     // check for the edge case where hitting the mob did not aggro it
-    if (sock != nullptr && mob->skillStyle >= -3) {
+    if (sock != nullptr) {
         Player* plr = PlayerManager::getPlayer(sock);
 
         int rolledBoosts = rand();
@@ -2048,10 +2048,10 @@ std::vector<MobPower> MobPowers = {
 #pragma endregion
 
 void MobManager::injusticeCharge(Mob *mob, time_t currTime, Player *plr) {
-    mob->damageResistance *= 0.5;
+    mob->damageResistance *= 0.75;
 
     if (mob->appearanceData.iHP < 9466) // kamikaze phase defense
-        mob->damageResistance *= 20;
+        mob->damageResistance *= 10;
 
     if (mob->nextMovement > currTime)
         return;
@@ -2089,7 +2089,7 @@ void MobManager::injusticeCharge(Mob *mob, time_t currTime, Player *plr) {
             speed /= 2; // slow down when snared
 
         if (mob->appearanceData.iHP < 9466)
-            speed *= 2;
+            speed *= 3;
         if (speed <= 0)
             speed = 1;
 
@@ -2147,7 +2147,7 @@ void MobManager::injusticeCharge(Mob *mob, time_t currTime, Player *plr) {
         mob->nextMovement = currTime + 500 + (rand() % 500) * mob->appearanceData.iHP / mob->maxHealth;
 
         if (skillID == (int)mob->data["m_iMegaType"]) { // kamikaze phase damage
-            mob->appearanceData.iHP -= 250;
+            mob->appearanceData.iHP -= 150;
             skillID = 113; // empty heal
             for (auto& pwr : MobPowers)
                 if (pwr.skillType == NanoManager::SkillTable[skillID].skillType)
@@ -2397,16 +2397,15 @@ void MobManager::injusticeStep(Mob *mob, time_t currTime) {
     if (mob->damageResistance < 1)
         mob->damageResistance = 1;
 
-    mob->healthDivider = 15;
-    mob->maxHealth = 63105;
+    mob->healthDivider = 10;
+    mob->maxHealth = 42070;
     switch (mob->state) {
     case MobState::INACTIVE:
         // no-op
         break;
     case MobState::ROAMING:
         mob->appearanceData.iHP = mob->maxHealth;
-        mob->dropType = 6666;
-        aggroCheck(mob, currTime);
+        mob->dropType = 0;
         break;
     case MobState::COMBAT:
         if (mob->skillStyle == -8)
@@ -2425,12 +2424,15 @@ void MobManager::injusticeStep(Mob *mob, time_t currTime) {
         if (mob->skillStyle != -8) {
             mob->skillStyle = -8;
             for (auto it = mob->viewableChunks->begin(); it != mob->viewableChunks->end(); it++) {
+                mob->dropType = 6666;
                 Chunk* chunk = *it;
-                for (CNSocket *s : chunk->players)
-                    giveReward(s, mob, 0, 0, 0, 0, 0);
+                for (CNSocket *s : chunk->players) {
+                    Player *plr = PlayerManager::getPlayer(s);
+                    if (plr->x < 705405 && plr->x > 697353 && plr->y < 786692 && plr->y > 783255)
+                        giveReward(s, mob, 0, 0, 0, 0, 0);
+                }
             }
         }
-        mob->regenTime = 9000; // 15 minute respawn
         deadStep(mob, currTime);
         break;
     }
