@@ -12,7 +12,7 @@ SERVER=bin/fusion
 
 # assign protocol version
 # this can be overriden by ex. make PROTOCOL_VERSION=728
-PROTOCOL_VERSION?=104
+PROTOCOL_VERSION?=20200109
 
 # Windows-specific
 WIN_CC=x86_64-w64-mingw32-gcc

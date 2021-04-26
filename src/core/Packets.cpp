@@ -532,7 +532,7 @@ std::map<uint32_t, PacketDesc> Packets::packets = {
     PACKET(P_FE2CL_REP_PC_ITEM_ENCHANT_SUCC),
     PACKET(P_FE2CL_REP_PC_ITEM_ENCHANT_FAIL),
 
-#ifdef ACADEMY
+#if defined(ACADEMY) || defined(RETRO)
     // Academy-specific
     PACKET(P_FE2CL_REP_NANO_BOOK_SUBSET),
 #endif

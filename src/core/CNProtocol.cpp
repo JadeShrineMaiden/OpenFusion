@@ -38,6 +38,25 @@ int CNSocketEncryption::xorData(uint8_t* buffer, uint8_t* key, int size) {
     return size;
 }
 
+#ifdef RETRO
+uint32_t CNSocketEncryption::validateSum(uint8_t* buffer, uint32_t type, int size) {
+    int num = 0;
+    int num2 = 0;
+    int num3 = iV >> 20; // 255
+
+    for (int i = 0;/*iV & 0xF*/ i < size; i++) {
+        num += buffer[i];
+        num -= num3 * (num / num3);
+        num2 += num;
+        num2 -= num3 * (num2 / num3);
+    }
+
+    int dataSum = ((num2 << ((iV >> 12) & 0xF)) | num) & (iV >> 16);
+    //std::cout << "Calculated sum: " << dataSum << std::endl;
+    return type | (dataSum << 12);
+}
+#endif
+
 uint64_t CNSocketEncryption::createNewKey(uint64_t uTime, int32_t iv1, int32_t iv2) {
     uint64_t num = (uint64_t)(iv1 + 1);
     uint64_t num2 = (uint64_t)(iv2 + 1);
@@ -145,6 +164,10 @@ void CNSocket::sendPacket(void* buf, uint32_t type, size_t size) {
     if (!alive)
         return;
 
+#ifdef RETRO
+    type = CNSocketEncryption::validateSum((uint8_t*)buf, type, (int) size);
+#endif
+
     uint8_t fullpkt[CN_PACKET_BUFFER_SIZE]; // length, type, body
     uint8_t* body = fullpkt + 4; // packet without length (type, body)
     size_t bodysize = size + 4;
@@ -181,7 +204,11 @@ void CNSocket::setActiveKey(ACTIVEKEY key) {
 }
 
 inline void CNSocket::parsePacket(uint8_t *buf, size_t size) {
+#ifdef RETRO
+    uint32_t type = *((uint32_t*)buf) & 0xFF000FFF;
+#else
     uint32_t type = *((uint32_t*)buf);
+#endif
     uint8_t *body = buf + 4;
     size_t pktSize = size - 4;
 

@@ -24,7 +24,8 @@ void Nanos::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm) 
     int level = plr->level;
 
 #ifndef ACADEMY
-    level = nanoID < plr->level ? plr->level : nanoID;
+    if (nanoID <= PC_LEVEL_MAX) // prevents retro nanos from setting you above lvl 36
+        level = nanoID < plr->level ? plr->level : nanoID;
 
     /*
      * Spend the necessary Fusion Matter.

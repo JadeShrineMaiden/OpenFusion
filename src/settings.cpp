@@ -46,6 +46,9 @@ std::string settings::PATHJSON = "paths.json";
 #ifdef ACADEMY
 std::string settings::XDTJSON = "xdt1013.json";
 std::string settings::ENABLEDPATCHES = "1013";
+#elseif RETRO
+std::string settings::XDTJSON = "xdt20200109.json";
+std::string settings::ENABLEDPATCHES = "20200109";
 #else
 std::string settings::XDTJSON = "xdt.json";
 std::string settings::ENABLEDPATCHES = "";

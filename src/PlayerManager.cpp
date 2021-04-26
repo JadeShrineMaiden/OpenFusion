@@ -173,7 +173,7 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z) {
  * for in these packets, even if the player hasn't unlocked them.
  */
 static void sendNanoBookSubset(CNSocket *sock) {
-#ifdef ACADEMY
+#if defined(ACADEMY) || defined(RETRO)
     Player *plr = getPlayer(sock);
 
     int16_t id = 0;
