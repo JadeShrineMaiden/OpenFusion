@@ -256,6 +256,20 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
         // post-warp: check if the source instance has no more players in it and delete it if so
         Chunking::destroyInstanceIfEmpty(fromInstance);
     }
+
+#ifdef RETRO
+    // this is the warp to the past
+    if (warpId == 76) {
+        // hand the player all future nanos if they don't have it
+        // using this in the guide change packet softlocks the player.
+        if (plr->level < 2)
+            Nanos::addNano(sock, 2, 0);
+        if (plr->level < 3)
+            Nanos::addNano(sock, 3, 0);
+        if (plr->level < 4)
+            Nanos::addNano(sock, 4, 0);
+    }
+#endif
 }
 
 static void npcWarpHandler(CNSocket* sock, CNPacketData* data) {
