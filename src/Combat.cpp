@@ -71,11 +71,10 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
     plr->lastShot = currTime;
 
-    if (pkt->iNPCCnt > 3) // 3+ targets should never be possible
-        plr->suspicionRating += 10000;
-
-    if (plr->suspicionRating > 10000) // kill the socket when the player is too suspicious
+    if (plr->suspicionRating > 10000) { // kill the socket when the player is too suspicious
         sock->kill();
+        return;
+    }
 
     /*
      * IMPORTANT: This validates memory safety in addition to preventing
@@ -625,8 +624,10 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
 
     plr->lastShot = currTime;
 
-    if (plr->suspicionRating > 10000) // kill the socket when the player is too suspicious
+    if (plr->suspicionRating > 10000) { // kill the socket when the player is too suspicious
         sock->kill();
+        return;
+    }
 
     /*
      * initialize response struct
