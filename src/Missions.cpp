@@ -487,7 +487,7 @@ void Missions::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
         }
     } else {
         for (i = 0; i < 3; i++) {
-            if (task["m_iFItemID"][i] == 0)
+            if (task["m_iFItemID"][i] == 0 || task["m_iFItemNumNeeded"][i] == 0)
                 continue;
             dropQuestItem(sock, taskNum, task["m_iFItemNumNeeded"][i], task["m_iFItemID"][i], 0);
         }
