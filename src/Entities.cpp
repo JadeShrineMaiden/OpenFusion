@@ -73,24 +73,22 @@ void Egg::enterIntoViewOf(CNSocket *sock) {
     
 // TODO: this is less effiecient than it was, because of memset()
 void Player::enterIntoViewOf(CNSocket *sock) {
-    if (!vanished) {
-        INITSTRUCT(sP_FE2CL_PC_NEW, pkt);
+    INITSTRUCT(sP_FE2CL_PC_NEW, pkt);
 
-        pkt.PCAppearanceData.iID = iID;
-        pkt.PCAppearanceData.iHP = HP;
-        pkt.PCAppearanceData.iLv = level;
-        pkt.PCAppearanceData.iX = x;
-        pkt.PCAppearanceData.iY = y;
-        pkt.PCAppearanceData.iZ = z;
-        pkt.PCAppearanceData.iAngle = angle;
-        pkt.PCAppearanceData.PCStyle = PCStyle;
-        pkt.PCAppearanceData.Nano = Nanos[activeNano];
-        pkt.PCAppearanceData.iPCState = iPCState;
-        pkt.PCAppearanceData.iSpecialState = iSpecialState;
-        memcpy(pkt.PCAppearanceData.ItemEquip, Equip, sizeof(sItemBase) * AEQUIP_COUNT);
+    pkt.PCAppearanceData.iID = iID;
+    pkt.PCAppearanceData.iHP = HP;
+    pkt.PCAppearanceData.iLv = level;
+    pkt.PCAppearanceData.iX = x;
+    pkt.PCAppearanceData.iY = y;
+    pkt.PCAppearanceData.iZ = z;
+    pkt.PCAppearanceData.iAngle = angle;
+    pkt.PCAppearanceData.PCStyle = PCStyle;
+    pkt.PCAppearanceData.Nano = Nanos[activeNano];
+    pkt.PCAppearanceData.iPCState = iPCState;
+    pkt.PCAppearanceData.iSpecialState = iSpecialState;
+    memcpy(pkt.PCAppearanceData.ItemEquip, Equip, sizeof(sItemBase) * AEQUIP_COUNT);
 
-        sock->sendPacket(pkt, P_FE2CL_PC_NEW);
-    }
+    sock->sendPacket(pkt, P_FE2CL_PC_NEW);
 }
 
 /*

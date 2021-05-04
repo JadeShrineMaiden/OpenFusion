@@ -695,22 +695,6 @@ static void playerTick(CNServer *serv, time_t currTime) {
         Player *plr = pair.second;
         bool transmit = false;
 
-        if (plr->followerNpc != 0 && NPCManager::NPCs.find(plr->followerNpc) != NPCManager::NPCs.end()) {
-            BaseNPC *npc = NPCManager::NPCs[plr->followerNpc];
-            int distance = hypot(plr->x - npc->x, plr->y - npc->y);
-            INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
-            pkt.iNPC_ID = plr->followerNpc;
-            pkt.iSpeed = distance;
-            pkt.iToX = npc->x = plr->x;
-            pkt.iToY = npc->y = plr->y;
-            pkt.iToZ = npc->z = plr->z;
-            if (distance > 600) {
-                pkt.iMoveStyle = 1;
-                pkt.iSpeed = 600;
-            }
-            NPCManager::sendToViewable(npc, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
-        }
-
         // group ticks
         if (plr->groupCnt > 1)
             Groups::groupTickInfo(plr);

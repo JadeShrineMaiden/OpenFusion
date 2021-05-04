@@ -1,7 +1,6 @@
 #include "PlayerMovement.hpp"
 #include "PlayerManager.hpp"
 #include "TableData.hpp"
-#include "NpcManager.hpp"
 #include "core/Core.hpp"
 
 static void movePlayer(CNSocket* sock, CNPacketData* data) {
@@ -48,18 +47,6 @@ static void movePlayer(CNSocket* sock, CNPacketData* data) {
         Transport::lerp(&queue, from, to, NPC_DEFAULT_SPEED * 1.5); // little faster than typical
         Transport::NPCQueues[follower->appearanceData.iNPC_ID] = queue;
     }
-
-    if (plr->followerNpc != 0 && NPCManager::NPCs.find(plr->followerNpc) != NPCManager::NPCs.end()) {
-        BaseNPC *npc = NPCManager::NPCs[plr->followerNpc];
-        int distance = hypot(plr->x - npc->x, plr->y - npc->y);
-        INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
-        pkt.iNPC_ID = plr->followerNpc;
-        pkt.iSpeed = 300;
-        pkt.iToX = npc->x = (npc->x + plr->x + moveData->fVX) / 2;
-        pkt.iToY = npc->y = (npc->y + plr->y + moveData->fVY) / 2;
-        pkt.iToZ = npc->z = (npc->z + plr->z + moveData->fVZ) / 2;
-        NPCManager::sendToViewable(npc, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
-    }
 }
 
 static void stopPlayer(CNSocket* sock, CNPacketData* data) {
@@ -82,22 +69,6 @@ static void stopPlayer(CNSocket* sock, CNPacketData* data) {
     stopResponse.iSvrTime = tm;
 
     PlayerManager::sendToViewable(sock, stopResponse, P_FE2CL_PC_STOP);
-
-    if (plr->followerNpc != 0 && NPCManager::NPCs.find(plr->followerNpc) != NPCManager::NPCs.end()) {
-        BaseNPC *npc = NPCManager::NPCs[plr->followerNpc];
-        int distance = hypot(plr->x - npc->x, plr->y - npc->y);
-        INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
-        pkt.iNPC_ID = plr->followerNpc;
-        pkt.iSpeed = distance;
-        pkt.iToX = npc->x = (npc->x + plr->x) / 2;
-        pkt.iToY = npc->y = (npc->y + plr->y) / 2;
-        pkt.iToZ = npc->z = (npc->z + plr->z) / 2;
-        if (distance > 600) {
-            pkt.iMoveStyle = 1;
-            pkt.iSpeed = 600;
-        }
-        NPCManager::sendToViewable(npc, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
-    }
 }
 
 static void jumpPlayer(CNSocket* sock, CNPacketData* data) {

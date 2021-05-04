@@ -91,9 +91,6 @@ struct Player : public Entity {
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;
 
-    bool vanished = false;
-    int followerNpc = 0;
-
 #ifdef RETRO
     int BankOwnership;
 #endif
