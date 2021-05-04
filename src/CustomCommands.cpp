@@ -1220,6 +1220,50 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
     Chat::sendServerMessage(sock, "[PATH] Unknown argument '" + args[1] + "'");
 }
 
+static void npcChatCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    if (args.size() < 3) {
+        Chat::sendServerMessage(sock, "Usage: /npcchat <npcid> <message>");
+        return;
+    }
+
+    char *rest;
+    int npcID = std::strtol(args[1].c_str(), &rest, 10);
+
+    if (NPCManager::NPCs.find(npcID) == NPCManager::NPCs.end())
+            return;
+
+    full.erase(0, 9 + args[1].length());
+
+    INITSTRUCT(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, resp);
+    U8toU16(full, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
+    resp.iPC_ID = npcID;
+    resp.iEmoteCode = 421;
+
+    NPCManager::sendToViewable(NPCManager::NPCs[npcID], &resp, P_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC));
+}
+
+static void becomeNpcCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    if (args.size() < 2) {
+        Chat::sendServerMessage(sock, "Usage: /becomeNpc <npcid>");
+        return;
+    }
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    char *rest;
+    int npcID = std::strtol(args[1].c_str(), &rest, 10);
+
+    INITSTRUCT(sP_FE2CL_PC_EXIT, pkt);
+    pkt.iID = plr->iID;
+    sock->sendPacket(pkt, P_FE2CL_PC_EXIT);
+    PlayerManager::sendToViewable(sock, pkt, P_FE2CL_PC_EXIT);
+
+    plr->vanished = true;
+    BaseNPC *spawnedNpc = NPCManager::summonNPC(plr->x, plr->y, plr->z, plr->instanceID, npcID);
+    plr->followerNpc = spawnedNpc->appearanceData.iNPC_ID;
+    NPCManager::updateNPCPosition(spawnedNpc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z,
+        plr->instanceID, plr->angle);
+}
+
 static void registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {
     commands[cmd] = ChatCommand(requiredLevel, handlr, help);
 }
@@ -1262,4 +1306,6 @@ void CustomCommands::init() {
     registerCommand("warptonpc", 50, warpToNpcCommand, "finds and warps you to an npc's location");
     registerCommand("startTask", 50, startTaskCommand, "starts a task of your choice");
     registerCommand("path", 30, pathCommand, "edit NPC paths");
+    registerCommand("npcchat", 30, npcChatCommand, "Makes an NPC speak to your whims.");
+    registerCommand("becomenpc", 30, becomeNpcCommand, "Self explanatory.");
 }
