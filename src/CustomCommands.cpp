@@ -761,32 +761,30 @@ static void unhideCommand(std::string full, std::vector<std::string>& args, CNSo
 }
 
 static void redeemCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
-    if (args.size() < 2) {
-        Chat::sendServerMessage(sock, "/redeem: No code specified");
+    if (args.size() < 2)
         return;
-    }
 
     // convert string to all lowercase
     const char* codeRaw = args[1].c_str();
-    if (args[1].size() > 256) { // prevent overflow
-        Chat::sendServerMessage(sock, "/redeem: Code too long");
+    if (args[1].size() > 256)
         return;
-    }
 
     char buf[256];
     for (int i = 0; i < args[1].size(); i++)
         buf[i] = std::tolower(codeRaw[i]);
     std::string code(buf, args[1].size());
 
-    if (Items::CodeItems.find(code) == Items::CodeItems.end()) {
-        Chat::sendServerMessage(sock, "/redeem: Unknown code");
+    if (Items::CodeItems.find(code) == Items::CodeItems.end())
         return;
-    }
 
     Player* plr = PlayerManager::getPlayer(sock);
 
     if (Database::isCodeRedeemed(plr->iID, code)) {
-        Chat::sendServerMessage(sock, "/redeem: You have already redeemed this code item");
+        INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
+        std::string text = "Code already redeemed.";
+        U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
+        msg.iDuringTime = 2;
+        sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
         return;
     }
 
@@ -796,7 +794,11 @@ static void redeemCommand(std::string full, std::vector<std::string>& args, CNSo
     for (int i = 0; i < itemCount; i++) {
         slots.push_back(Items::findFreeSlot(plr));
         if (slots[i] == -1) {
-            Chat::sendServerMessage(sock, "/redeem: Not enough space in inventory");
+            INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg1);
+            std::string text = "Not enough inventory space.";
+            U8toU16(text, msg1.szAnnounceMsg, sizeof(msg1.szAnnounceMsg));
+            msg1.iDuringTime = 2;
+            sock->sendPacket(msg1, P_FE2CL_GM_REP_PC_ANNOUNCE);
 
             // delete any temp items we might have set
             for (int j = 0; j < i; j++) {
@@ -826,8 +828,11 @@ static void redeemCommand(std::string full, std::vector<std::string>& args, CNSo
 
         sock->sendPacket(resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC);
     }
-    std::string msg = itemCount == 1 ? "You have redeemed a code item" : "You have redeemed code items";
-    Chat::sendServerMessage(sock, msg);
+    INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg2);
+    std::string text = "Redeemed Item(s) Successfully.";
+    U8toU16(text, msg2.szAnnounceMsg, sizeof(msg2.szAnnounceMsg));
+    msg2.iDuringTime = 2;
+    sock->sendPacket(msg2, P_FE2CL_GM_REP_PC_ANNOUNCE);
 }
 
 static void unwarpableCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
