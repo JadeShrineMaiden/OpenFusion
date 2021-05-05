@@ -335,27 +335,26 @@ bool Missions::startTask(Player* plr, int TaskID) {
     return true;
 }
 
-static void taskStart(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_TASK_START* missionData = (sP_CL2FE_REQ_PC_TASK_START*)data->buf;
+void Missions::taskStart(CNSocket* sock, int taskNum) {
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, response);
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (!startTask(plr, missionData->iTaskNum)) {
+    if (!startTask(plr, taskNum)) {
         INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_FAIL, failresp);
-        failresp.iTaskNum = missionData->iTaskNum;
+        failresp.iTaskNum = taskNum;
         failresp.iErrorCode = 1; // unused in the client
         sock->sendPacket(failresp, P_FE2CL_REP_PC_TASK_START_FAIL);
         return;
     }
 
-    TaskData& task = *Tasks[missionData->iTaskNum];
+    TaskData& task = *Tasks[taskNum];
 
     // Give player their delivery items at the start, or reset them to 0 at the start.
     for (int i = 0; i < 3; i++)
         if (task["m_iSTItemID"][i] != 0)
-            dropQuestItem(sock, missionData->iTaskNum, task["m_iSTItemNumNeeded"][i], task["m_iSTItemID"][i], 0);
-    std::cout << "Mission requested task: " << missionData->iTaskNum << std::endl;
-    response.iTaskNum = missionData->iTaskNum;
+            dropQuestItem(sock, taskNum, task["m_iSTItemNumNeeded"][i], task["m_iSTItemID"][i], 0);
+    std::cout << "Mission requested task: " << taskNum << std::endl;
+    response.iTaskNum = taskNum;
     response.iRemainTime = task["m_iSTGrantTimer"];
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
 
@@ -375,6 +374,11 @@ static void taskStart(CNSocket* sock, CNPacketData* data) {
             }
         }
     }
+}
+
+static void taskStartPacket(CNSocket* sock, CNPacketData* data) {
+    sP_CL2FE_REQ_PC_TASK_START* missionData = (sP_CL2FE_REQ_PC_TASK_START*)data->buf;
+    taskStart(sock, missionData->iTaskNum);
 }
 
 static void taskEnd(CNSocket* sock, CNPacketData* data) {
@@ -632,7 +636,7 @@ void Missions::failInstancedMissions(CNSocket* sock) {
 }
 
 void Missions::init() {
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_START, taskStart);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_START, taskStartPacket);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_END, taskEnd);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID, setMission);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_STOP, quitMission);

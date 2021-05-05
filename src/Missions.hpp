@@ -43,6 +43,7 @@ namespace Missions {
     int findQSlot(Player *plr, int id);
 
     bool startTask(Player* plr, int TaskID);
+    void taskStart(CNSocket* sock, int taskNum);
 
     // checks if player doesn't have n/n quest items
     void updateFusionMatter(CNSocket* sock, int fusion);

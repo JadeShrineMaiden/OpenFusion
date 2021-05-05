@@ -954,6 +954,36 @@ static void unbanCommand(std::string full, std::vector<std::string>& args, CNSoc
     }
 }
 
+static void startTaskCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    if (args.size() < 2) {
+        Chat::sendServerMessage(sock, "Usage: /gettask <task id>");
+        return;
+    }
+
+    char *rest;
+    int taskID = std::strtol(args[1].c_str(), &rest, 10);
+
+    Missions::taskStart(sock, taskID);
+}
+
+static void warpToNpcCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    if (args.size() < 2) {
+        Chat::sendServerMessage(sock, "Usage: /warptonpc <npc type>");
+        return;
+    }
+
+    char *rest;
+    int id = std::strtol(args[1].c_str(), &rest, 10);
+
+    for (auto& pair : NPCManager::NPCs) {
+        if (pair.second->appearanceData.iNPCType != id)
+            continue;
+
+        PlayerManager::sendPlayerTo(sock, pair.second->x, pair.second->y, pair.second->z + 80, pair.second->instanceID);
+        return;
+    }
+}
+
 static void pathCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -1228,5 +1258,8 @@ void CustomCommands::init() {
     registerCommand("registerall", 50, registerallCommand, "register all SCAMPER and MSS destinations");
     registerCommand("unregisterall", 50, unregisterallCommand, "clear all SCAMPER and MSS destinations");
     registerCommand("redeem", 100, redeemCommand, "redeem a code item");
+    registerCommand("gettask", 50, startTaskCommand, "starts a task of your choice");
+    registerCommand("warptonpc", 50, warpToNpcCommand, "finds and warps you to an npc's location");
+    registerCommand("startTask", 50, startTaskCommand, "starts a task of your choice");
     registerCommand("path", 30, pathCommand, "edit NPC paths");
 }
