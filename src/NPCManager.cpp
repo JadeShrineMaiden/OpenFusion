@@ -90,6 +90,7 @@ void NPCManager::sendToViewable(BaseNPC *npc, void *buf, uint32_t type, size_t s
 }
 
 static void npcBarkHandler(CNSocket* sock, CNPacketData* data) {
+    return;
     sP_CL2FE_REQ_BARKER* req = (sP_CL2FE_REQ_BARKER*)data->buf;
 
     // get bark IDs from task data

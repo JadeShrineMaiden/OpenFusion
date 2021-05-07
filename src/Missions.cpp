@@ -365,7 +365,7 @@ void Missions::taskStart(CNSocket* sock, int taskNum) {
             for (EntityRef ref : chunk->entities) {
                 if (ref.type != EntityType::PLAYER) {
                     BaseNPC* npc = (BaseNPC*)ref.getEntity();
-                    NPCPath* path = Transport::findApplicablePath(npc->appearanceData.iNPC_ID, npc->appearanceData.iNPCType, missionData->iTaskNum);
+                    NPCPath* path = Transport::findApplicablePath(npc->appearanceData.iNPC_ID, npc->appearanceData.iNPCType, taskNum);
                     if (path != nullptr) {
                         Transport::constructPathNPC(npc->appearanceData.iNPC_ID, path);
                         return;

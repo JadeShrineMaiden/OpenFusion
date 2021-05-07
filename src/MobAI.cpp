@@ -679,11 +679,17 @@ static void roamingStep(Mob *mob, time_t currTime) {
         return;
 
     int farX, farY, distance;
-    int minDistance = mob->idleRange / 2;
+    int minDistance = mob->idleRange / 4;
 
     // pick a random destination
     farX = xStart + Rand::rand(mob->idleRange);
     farY = yStart + Rand::rand(mob->idleRange);
+
+    // make mobs in lairs and infected zones move around less
+    if (mob->instanceID > 0) {
+        farX /= 2;
+        farY /= 2;
+    }
 
     distance = std::abs(std::max(farX - mob->x, farY - mob->y));
     if (distance == 0)
