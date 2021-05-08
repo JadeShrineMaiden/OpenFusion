@@ -70,6 +70,7 @@ struct Player : public Entity {
     int groupCnt = 0;
     int32_t groupIDs[4] = {};
     int32_t iGroupConditionBitFlag = 0;
+    int groupNPC = 0;
 
     bool notify = false;
     bool hidden = false;

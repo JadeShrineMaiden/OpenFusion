@@ -4,6 +4,7 @@
 #include "Nanos.hpp"
 #include "Items.hpp"
 #include "Transport.hpp"
+#include "Groups.hpp"
 
 #include "string.h"
 
@@ -357,23 +358,6 @@ void Missions::taskStart(CNSocket* sock, int taskNum) {
     response.iTaskNum = taskNum;
     response.iRemainTime = task["m_iSTGrantTimer"];
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
-
-    // if escort task, assign matching paths to all nearby NPCs
-    if (task["m_iHTaskType"] == 6) {
-        for (ChunkPos& chunkPos : Chunking::getChunksInMap(plr->instanceID)) { // check all NPCs in the instance
-            Chunk* chunk = Chunking::chunks[chunkPos];
-            for (EntityRef ref : chunk->entities) {
-                if (ref.type != EntityType::PLAYER) {
-                    BaseNPC* npc = (BaseNPC*)ref.getEntity();
-                    NPCPath* path = Transport::findApplicablePath(npc->appearanceData.iNPC_ID, npc->appearanceData.iNPCType, taskNum);
-                    if (path != nullptr) {
-                        Transport::constructPathNPC(npc->appearanceData.iNPC_ID, path);
-                        return;
-                    }
-                }
-            }
-        }
-    }
 }
 
 static void taskStartPacket(CNSocket* sock, CNPacketData* data) {
@@ -500,6 +484,12 @@ void Missions::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
         failResp.iErrorCode = 1;
         failResp.iTaskNum = taskNum;
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_TASK_END_FAIL, sizeof(sP_FE2CL_REP_PC_TASK_END_FAIL));
+
+        if (NPCManager::NPCs.find(plr->groupNPC) == NPCManager::NPCs.end())
+            return;
+
+        BaseNPC* npc = NPCManager::NPCs[plr->groupNPC];
+        Groups::kickNpcGroup(sock, npc);
     }
 
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_STOP_SUCC, response);

@@ -14,4 +14,5 @@ namespace Groups {
     void groupTickInfo(Player* plr);
     void groupKickPlayer(Player* plr);
     int getGroupFlags(Player* plr);
+    void kickNpcGroup(CNSocket* sock, BaseNPC* npc);
 }

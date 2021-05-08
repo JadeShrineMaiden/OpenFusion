@@ -3,6 +3,10 @@
 #include "Groups.hpp"
 #include "Nanos.hpp"
 #include "Abilities.hpp"
+#include "Missions.hpp"
+#include "TableData.hpp"
+#include "MobAI.hpp"
+#include "Transport.hpp"
 
 #include <iostream>
 #include <chrono>
@@ -326,9 +330,153 @@ int Groups::getGroupFlags(Player* plr) {
     return bitFlag;
 }
 
+void Groups::kickNpcGroup(CNSocket* sock, BaseNPC* npc) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
+
+    if (otherPlr == nullptr)
+        return;
+
+   if (!validOutVarPacket(sizeof(sP_FE2CL_REP_NPC_GROUP_KICK_SUCC), otherPlr->groupCnt, sizeof(sPCGroupMemberInfo))) {
+        std::cout << "[WARN] bad sP_FE2CL_REP_NPC_GROUP_KICK_SUCC packet size\n";
+        return;
+    }
+
+    size_t resplen = sizeof(sP_FE2CL_REP_NPC_GROUP_KICK_SUCC) + otherPlr->groupCnt * sizeof(sPCGroupMemberInfo);
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    memset(respbuf, 0, resplen);
+    sP_FE2CL_REP_NPC_GROUP_INVITE_SUCC *resp = (sP_FE2CL_REP_NPC_GROUP_INVITE_SUCC*)respbuf;
+    sPCGroupMemberInfo *respdata = (sPCGroupMemberInfo*)(respbuf+sizeof(sP_FE2CL_REP_NPC_GROUP_INVITE_SUCC));
+    resp->iPC_ID = plr->iID;
+    resp->iNPC_ID = npc->appearanceData.iNPC_ID;
+    resp->iMemberPCCnt = otherPlr->groupCnt;
+    resp->iMemberNPCCnt = 0;
+
+    for (int i = 0; i < otherPlr->groupCnt; i++) {
+        Player* varPlr = PlayerManager::getPlayerFromID(otherPlr->groupIDs[i]);
+        CNSocket* sockTo = PlayerManager::getSockFromID(otherPlr->groupIDs[i]);
+
+        if (varPlr == nullptr || sockTo == nullptr)
+            continue;
+
+        respdata[i].iPC_ID = varPlr->iID;
+        respdata[i].iPCUID = varPlr->PCStyle.iPC_UID;
+        respdata[i].iNameCheck = varPlr->PCStyle.iNameCheck;
+        memcpy(respdata[i].szFirstName, varPlr->PCStyle.szFirstName, sizeof(varPlr->PCStyle.szFirstName));
+        memcpy(respdata[i].szLastName, varPlr->PCStyle.szLastName, sizeof(varPlr->PCStyle.szLastName));
+        respdata[i].iSpecialState = varPlr->iSpecialState;
+        respdata[i].iLv = varPlr->level;
+        respdata[i].iHP = varPlr->HP;
+        respdata[i].iMaxHP = PC_MAXHEALTH(varPlr->level);
+        respdata[i].iX = varPlr->x;
+        respdata[i].iY = varPlr->y;
+        respdata[i].iZ = varPlr->z;
+    }
+
+    sock->sendPacket((void*)&respbuf, P_FE2CL_REP_NPC_GROUP_INVITE_SUCC, resplen);
+    if (TableData::RunningNPCPaths.find(plr->iID) != TableData::RunningNPCPaths.end())
+        TableData::RunningNPCPaths.erase(plr->iID);
+    Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // erase existing points
+    plr->groupNPC = 0;
+}
+
+static void kickNpcGroupPacket(CNSocket* sock, CNPacketData* data) {
+    sP_CL2FE_REQ_NPC_GROUP_KICK* recv = (sP_CL2FE_REQ_NPC_GROUP_KICK*)data->buf;
+
+    if (NPCManager::NPCs.find(recv->iNPC_ID) == NPCManager::NPCs.end())
+        return; // TODO: Use fail packet here
+
+    BaseNPC* npc = NPCManager::NPCs[recv->iNPC_ID];
+    kickNpcGroup(sock, npc);
+}
+
+static void requestNpcGroup(CNSocket* sock, CNPacketData* data) {
+    sP_CL2FE_REQ_NPC_GROUP_INVITE* recv = (sP_CL2FE_REQ_NPC_GROUP_INVITE*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    if (NPCManager::NPCs.find(recv->iNPC_ID) == NPCManager::NPCs.end())
+        return; // TODO: Use fail packet here
+
+    BaseNPC* npc = NPCManager::NPCs[recv->iNPC_ID];
+
+    for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+        if (plr->tasks[i] == 0)
+            continue;
+
+        TaskData& task = *Missions::Tasks[plr->tasks[i]];
+        if (task["m_iCSUDEFNPCID"] != npc->appearanceData.iNPCType) // make sure the player has a mission with the npc requested
+            return;
+
+        Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
+
+        if (otherPlr == nullptr)
+            return;
+
+        if (!validOutVarPacket(sizeof(sP_FE2CL_REP_NPC_GROUP_INVITE_SUCC) + sizeof(sNPCGroupMemberInfo), otherPlr->groupCnt, sizeof(sPCGroupMemberInfo))) {
+            std::cout << "[WARN] bad sP_FE2CL_REP_NPC_GROUP_INVITE_SUCC packet size\n";
+            return;
+        }
+
+        size_t resplen = sizeof(sP_FE2CL_REP_NPC_GROUP_INVITE_SUCC) + otherPlr->groupCnt * sizeof(sPCGroupMemberInfo) + sizeof(sNPCGroupMemberInfo);
+        uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+        memset(respbuf, 0, resplen);
+        sP_FE2CL_REP_NPC_GROUP_INVITE_SUCC *resp = (sP_FE2CL_REP_NPC_GROUP_INVITE_SUCC*)respbuf;
+        sPCGroupMemberInfo *respdata = (sPCGroupMemberInfo*)(respbuf+sizeof(sP_FE2CL_REP_NPC_GROUP_INVITE_SUCC));
+        sNPCGroupMemberInfo *respdata2 = (sNPCGroupMemberInfo*)(respbuf+sizeof(sP_FE2CL_REP_NPC_GROUP_INVITE_SUCC)+otherPlr->groupCnt*sizeof(sPCGroupMemberInfo));
+        resp->iPC_ID = plr->iID;
+        resp->iNPC_ID = npc->appearanceData.iNPC_ID;
+        resp->iMemberPCCnt = otherPlr->groupCnt;
+        resp->iMemberNPCCnt = 1; // believe the client is only designed to handle one
+
+        for (int i = 0; i < otherPlr->groupCnt; i++) {
+            Player* varPlr = PlayerManager::getPlayerFromID(otherPlr->groupIDs[i]);
+            CNSocket* sockTo = PlayerManager::getSockFromID(otherPlr->groupIDs[i]);
+
+            if (varPlr == nullptr || sockTo == nullptr)
+                continue;
+
+            respdata[i].iPC_ID = varPlr->iID;
+            respdata[i].iPCUID = varPlr->PCStyle.iPC_UID;
+            respdata[i].iNameCheck = varPlr->PCStyle.iNameCheck;
+            memcpy(respdata[i].szFirstName, varPlr->PCStyle.szFirstName, sizeof(varPlr->PCStyle.szFirstName));
+            memcpy(respdata[i].szLastName, varPlr->PCStyle.szLastName, sizeof(varPlr->PCStyle.szLastName));
+            respdata[i].iSpecialState = varPlr->iSpecialState;
+            respdata[i].iLv = varPlr->level;
+            respdata[i].iHP = varPlr->HP;
+            respdata[i].iMaxHP = PC_MAXHEALTH(varPlr->level);
+            respdata[i].iX = varPlr->x;
+            respdata[i].iY = varPlr->y;
+            respdata[i].iZ = varPlr->z;
+        }
+
+        respdata2->iNPC_ID = npc->appearanceData.iNPC_ID;
+        respdata2->iNPC_Type = npc->appearanceData.iNPCType;
+        respdata2->iHP = npc->appearanceData.iHP = NPCManager::NPCData[npc->appearanceData.iNPCType]["m_iHP"];
+        respdata2->iMapNum = (int32_t)npc->instanceID;
+        respdata2->iX = npc->appearanceData.iX;
+        respdata2->iY = npc->appearanceData.iY;
+        respdata2->iZ = npc->appearanceData.iZ;
+
+        sock->sendPacket((void*)&respbuf, P_FE2CL_REP_NPC_GROUP_INVITE_SUCC, resplen);
+        plr->groupNPC = npc->appearanceData.iNPC_ID;
+
+        NPCPath* path = Transport::findApplicablePath(MAPNUM(npc->appearanceData.iNPC_ID), npc->appearanceData.iNPCType, plr->tasks[i]);
+        if (task["m_iCSUDEPNPCFollow"] == 0 && path != nullptr) {
+            Transport::constructPathNPC(npc->appearanceData.iNPC_ID, path);
+            return;
+        }
+        // all other cases, the npc just follows the player
+        std::vector<BaseNPC*> pathPoints;
+        TableData::RunningNPCPaths[plr->iID] = std::make_pair(npc, pathPoints); // HACK: Create a gruntwork npc with no points
+        return;
+    }
+}
+
 void Groups::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_INVITE, requestGroup);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_INVITE_REFUSE, refuseGroup);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_JOIN, joinGroup);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_LEAVE, leaveGroup);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_GROUP_INVITE, requestNpcGroup);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_GROUP_KICK, kickNpcGroupPacket);
 }
