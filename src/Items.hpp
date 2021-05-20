@@ -105,6 +105,7 @@ namespace Items {
     extern std::map<int32_t, int32_t> EventToDropMap;
     extern std::map<int32_t, int32_t> MobToDropMap;
     extern std::map<int32_t, ItemSet> ItemSets;
+    extern std::map<std::pair<int32_t, int32_t>, Bank*> TempBank;
 
     void init();
 

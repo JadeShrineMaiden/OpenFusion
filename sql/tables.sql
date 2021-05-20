@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS Players (
     SkywayLocationFlag BLOB NOT NULL,
     FirstUseFlag       BLOB NOT NULL,
     Quests             BLOB NOT NULL,
+    BankOwnership      INTEGER DEFAULT 0 NOT NULL,
     PRIMARY KEY(PlayerID AUTOINCREMENT),
     FOREIGN KEY(AccountID) REFERENCES Accounts(AccountID) ON DELETE CASCADE,
     UNIQUE (AccountID, Slot),

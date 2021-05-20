@@ -5,13 +5,6 @@
 static void removeExpiredVehicles(Player* player) {
     int32_t currentTime = getTimestamp();
 
-    // if there are expired vehicles in bank just remove them silently
-    for (int i = 0; i < ABANK_COUNT; i++) {
-        if (player->Bank[i].iType == 10 && player->Bank[i].iTimeLimit < currentTime && player->Bank[i].iTimeLimit != 0) {
-            memset(&player->Bank[i], 0, sizeof(sItemBase));
-        }
-    }
-
     // we want to leave only 1 expired vehicle on player to delete it with the client packet
     std::vector<sItemBase*> toRemove;
 
@@ -39,6 +32,23 @@ static void removeExpiredVehicles(Player* player) {
 void Database::getPlayer(Player* plr, int id) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
+#ifdef RETRO
+    const char* sql = R"(
+        SELECT
+            p.AccountID, p.Slot, p.FirstName, p.LastName,
+            p.Level, p.Nano1, p.Nano2, p.Nano3,
+            p.AppearanceFlag, p.TutorialFlag, p.PayZoneFlag,
+            p.XCoordinate, p.YCoordinate, p.ZCoordinate, p.NameCheck,
+            p.Angle, p.HP, acc.AccountLevel, p.FusionMatter, p.Taros, p.Quests,
+            p.BatteryW, p.BatteryN, p.Mentor, p.WarpLocationFlag,
+            p.SkywayLocationFlag, p.CurrentMissionID, p.FirstUseFlag,
+            a.Body, a.EyeColor, a.FaceStyle, a.Gender, a.HairColor, a.HairStyle, a.Height, a.SkinColor, p.BankOwnership
+        FROM Players as p
+        INNER JOIN Appearances as a ON p.PlayerID = a.PlayerID
+        INNER JOIN Accounts as acc ON p.AccountID = acc.AccountID
+        WHERE p.PlayerID = ?;
+        )";
+#else
     const char* sql = R"(
         SELECT
             p.AccountID, p.Slot, p.FirstName, p.LastName,
@@ -54,6 +64,7 @@ void Database::getPlayer(Player* plr, int id) {
         INNER JOIN Accounts as acc ON p.AccountID = acc.AccountID
         WHERE p.PlayerID = ?;
         )";
+#endif
     sqlite3_stmt* stmt;
 
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
@@ -118,6 +129,10 @@ void Database::getPlayer(Player* plr, int id) {
     plr->PCStyle.iHeight = sqlite3_column_int(stmt, 34);
     plr->PCStyle.iSkinColor = sqlite3_column_int(stmt, 35);
 
+#ifdef RETRO
+    plr->BankOwnership = sqlite3_column_int(stmt, 36);
+#endif
+
     sqlite3_finalize(stmt);
 
     // get inventory
@@ -148,8 +163,7 @@ void Database::getPlayer(Player* plr, int id) {
             // inventory
             item = &plr->Inven[slot - AEQUIP_COUNT];
         } else {
-            // bank
-            item = &plr->Bank[slot - AEQUIP_COUNT - AINVEN_COUNT];
+            continue; // we don't deal with banks anymore
         }
 
         item->iType = sqlite3_column_int(stmt, 1);
@@ -285,11 +299,24 @@ void Database::getPlayer(Player* plr, int id) {
     sqlite3_finalize(stmt);
 }
 
-void Database::updatePlayer(Player *player) {
+void Database::updatePlayer(Player *player, std::map<std::pair<int32_t, int32_t>, Bank*> *banks) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
 
+#ifdef RETRO
+    const char* sql = R"(
+        UPDATE Players
+        SET
+            Level = ? , Nano1 = ?, Nano2 = ?, Nano3 = ?,
+            XCoordinate = ?, YCoordinate = ?, ZCoordinate = ?,
+            Angle = ?, HP = ?, FusionMatter = ?, Taros = ?, Quests = ?,
+            BatteryW = ?, BatteryN = ?, WarplocationFlag = ?,
+            SkywayLocationFlag = ?, CurrentMissionID = ?,
+            PayZoneFlag = ?, FirstUseFlag = ?, Mentor = ?, BankOwnership = ?
+        WHERE PlayerID = ?;
+        )";
+#else
     const char* sql = R"(
         UPDATE Players
         SET
@@ -301,6 +328,7 @@ void Database::updatePlayer(Player *player) {
             PayZoneFlag = ?, FirstUseFlag = ?, Mentor = ?
         WHERE PlayerID = ?;
         )";
+#endif
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, player->level);
@@ -333,7 +361,12 @@ void Database::updatePlayer(Player *player) {
     sqlite3_bind_int(stmt, 18, player->PCStyle2.iPayzoneFlag);
     sqlite3_bind_blob(stmt, 19, player->iFirstUseFlag, sizeof(player->iFirstUseFlag), NULL);
     sqlite3_bind_int(stmt, 20, player->mentor);
+#ifdef RETRO
+    sqlite3_bind_int(stmt, 21, player->BankOwnership);
+    sqlite3_bind_int(stmt, 22, player->iID);
+#else
     sqlite3_bind_int(stmt, 21, player->iID);
+#endif
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
@@ -346,11 +379,42 @@ void Database::updatePlayer(Player *player) {
 
     // update inventory
     sql = R"(
-        DELETE FROM Inventory WHERE PlayerID = ?;
+        DELETE FROM Inventory WHERE PlayerID = ? AND Slot BETWEEN ? and ?;
         )";
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, player->iID);
+    sqlite3_bind_int(stmt, 2, 0);
+    sqlite3_bind_int(stmt, 3, AEQUIP_COUNT + AINVEN_COUNT - 1);
+
     int rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
+        std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+        sqlite3_finalize(stmt);
+        return;
+    }
+    sqlite3_reset(stmt);
+
+    auto iterator = banks->begin();
+    while (iterator != banks->end()) {
+        if (iterator->first.first == player->iID) {
+            int bankSlotBegin = AEQUIP_COUNT + AINVEN_COUNT + iterator->first.second * ABANK_COUNT;
+
+            sqlite3_bind_int(stmt, 1, player->iID);
+            sqlite3_bind_int(stmt, 2, bankSlotBegin);
+            sqlite3_bind_int(stmt, 3, bankSlotBegin + ABANK_COUNT - 1);
+
+            std::cout << "Wiping bank slots " << bankSlotBegin << "-" << bankSlotBegin + ABANK_COUNT - 1 << " for " << player->iID << std::endl;
+            if (sqlite3_step(stmt) != SQLITE_DONE) {
+                std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
+                sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+                sqlite3_finalize(stmt);
+                return;
+            }
+            sqlite3_reset(stmt);
+        }
+        iterator++;
+    }
 
     sqlite3_finalize(stmt);
 
@@ -403,24 +467,34 @@ void Database::updatePlayer(Player *player) {
         sqlite3_reset(stmt);
     }
 
-    for (int i = 0; i < ABANK_COUNT; i++) {
-        if (player->Bank[i].iID == 0)
-            continue;
+    auto it = banks->begin();
+    while (it != banks->end()) {
+        if (it->first.first == player->iID) {
+            for (int i = 0; i < ABANK_COUNT; i++) {
+                if (it->second->bankSlot[i].iID == 0)
+                    continue;
 
-        sqlite3_bind_int(stmt, 1, player->iID);
-        sqlite3_bind_int(stmt, 2, i + AEQUIP_COUNT + AINVEN_COUNT);
-        sqlite3_bind_int(stmt, 3, player->Bank[i].iType);
-        sqlite3_bind_int(stmt, 4, player->Bank[i].iOpt);
-        sqlite3_bind_int(stmt, 5, player->Bank[i].iID);
-        sqlite3_bind_int(stmt, 6, player->Bank[i].iTimeLimit);
+                sqlite3_bind_int(stmt, 1, player->iID);
+                sqlite3_bind_int(stmt, 2, i + AEQUIP_COUNT + AINVEN_COUNT + it->first.second * ABANK_COUNT);
+                sqlite3_bind_int(stmt, 3, it->second->bankSlot[i].iType);
+                sqlite3_bind_int(stmt, 4, it->second->bankSlot[i].iOpt);
+                sqlite3_bind_int(stmt, 5, it->second->bankSlot[i].iID);
+                sqlite3_bind_int(stmt, 6, it->second->bankSlot[i].iTimeLimit);
 
-        if (sqlite3_step(stmt) != SQLITE_DONE) {
-            std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
-            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-            sqlite3_finalize(stmt);
-            return;
+                if (sqlite3_step(stmt) != SQLITE_DONE) {
+                    std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
+                    sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+                    sqlite3_finalize(stmt);
+                    return;
+                }
+                sqlite3_reset(stmt);
+                std::cout << "Saved bank slot " << (i + AEQUIP_COUNT + AINVEN_COUNT + it->first.second * 200) << " for playerid " << player->iID << std::endl;
+            }
+
+            it = banks->erase(it);
+        } else {
+            it++;
         }
-        sqlite3_reset(stmt);
     }
 
     sqlite3_finalize(stmt);
@@ -533,5 +607,39 @@ void Database::updatePlayer(Player *player) {
     }
 
     sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
+    sqlite3_finalize(stmt);
+}
+
+void Database::getBank(Bank *bank, int id, int activeBank) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    // get inventory
+    const char* sql = R"(
+        SELECT Slot, Type, ID, Opt, TimeLimit
+        FROM Inventory
+        WHERE PlayerID = ?;
+        )";
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    sqlite3_bind_int(stmt, 1, id);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int slot = sqlite3_column_int(stmt, 0);
+
+        if (slot < AEQUIP_COUNT + AINVEN_COUNT + activeBank * ABANK_COUNT || slot > AEQUIP_COUNT + AINVEN_COUNT + (activeBank + 1) * ABANK_COUNT)
+            continue;
+
+        sItemBase* item;
+        item = &bank->bankSlot[slot - AEQUIP_COUNT - AINVEN_COUNT - activeBank * ABANK_COUNT];
+
+        item->iType = sqlite3_column_int(stmt, 1);
+        item->iID = sqlite3_column_int(stmt, 2);
+        item->iOpt = sqlite3_column_int(stmt, 3);
+        item->iTimeLimit = sqlite3_column_int(stmt, 4);
+        std::cout << "Loaded bank slot " << slot << " for playerid " << id << std::endl;
+    }
+
     sqlite3_finalize(stmt);
 }

@@ -78,7 +78,8 @@ namespace Database {
 
     // getting players
     void getPlayer(Player* plr, int id);
-    void updatePlayer(Player *player);
+    void updatePlayer(Player *player, std::map<std::pair<int32_t, int32_t>, Bank*> *banks);
+    void getBank(Bank *bank, int id, int activeBank);
     
     // buddies
     int getNumBuddies(Player* player);

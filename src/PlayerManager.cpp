@@ -55,7 +55,7 @@ void PlayerManager::removePlayer(CNSocket* key) {
     Racing::EPRaces.erase(key);
 
     // save player to DB
-    Database::updatePlayer(plr);
+    Database::updatePlayer(plr, &Items::TempBank);
 
     // remove player visually and untrack
     EntityRef ref = {key};

@@ -7,6 +7,7 @@
 #include "core/CNShared.hpp"
 #include "settings.hpp"
 #include "TableData.hpp" // for flush()
+#include "Items.hpp" // database saving for banks
 
 #include <iostream>
 #include <sstream>
@@ -58,7 +59,7 @@ void CNShardServer::periodicSaveTimer(CNServer* serv, time_t currTime) {
     std::cout << "[INFO] Saving " << PlayerManager::players.size() << " players to DB..." << std::endl;
 
     for (auto& pair : PlayerManager::players) {
-        Database::updatePlayer(pair.second);
+        Database::updatePlayer(pair.second, &Items::TempBank);
     }
 
     TableData::flush();

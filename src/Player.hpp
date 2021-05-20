@@ -43,7 +43,6 @@ struct Player : public Entity {
     int recallX = 0, recallY = 0, recallZ = 0, recallInstance = 0; // also Lair entrances
     sItemBase Equip[AEQUIP_COUNT] = {};
     sItemBase Inven[AINVEN_COUNT] = {};
-    sItemBase Bank[ABANK_COUNT] = {};
     sItemTrade Trade[12] = {};
     int32_t moneyInTrade = 0;
     bool isTrading = false;
@@ -91,4 +90,14 @@ struct Player : public Entity {
 
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;
+
+#ifdef RETRO
+    int BankOwnership;
+#endif
+    int activeBank; // we only really need this in retro but it creates a maze of ifdefs if not used
+
+};
+
+struct Bank {
+    sItemBase bankSlot[ABANK_COUNT] = {};
 };
