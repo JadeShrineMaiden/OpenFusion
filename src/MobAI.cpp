@@ -679,17 +679,11 @@ static void roamingStep(Mob *mob, time_t currTime) {
         return;
 
     int farX, farY, distance;
-    int minDistance = mob->idleRange / 4;
+    int minDistance = mob->idleRange / 2;
 
     // pick a random destination
     farX = xStart + Rand::rand(mob->idleRange);
     farY = yStart + Rand::rand(mob->idleRange);
-
-    // make mobs in lairs and infected zones move around less
-    if (mob->instanceID > 0) {
-        farX /= 2;
-        farY /= 2;
-    }
 
     distance = std::abs(std::max(farX - mob->x, farY - mob->y));
     if (distance == 0)
@@ -700,8 +694,14 @@ static void roamingStep(Mob *mob, time_t currTime) {
     farY = mob->y + (farY - mob->y) * minDistance / distance;
 
     // but don't got out of bounds
-    farX = std::clamp(farX, xStart, xStart + mob->idleRange);
-    farY = std::clamp(farY, yStart, yStart + mob->idleRange);
+    if (mob->instanceID == 0) {
+        farX = std::clamp(farX, xStart, xStart + mob->idleRange);
+        farY = std::clamp(farY, yStart, yStart + mob->idleRange);
+    } else {
+        // make mobs in lairs and infected zones move around less
+        farX = std::clamp(farX, xStart, xStart + mob->idleRange / 2);
+        farY = std::clamp(farY, yStart, yStart + mob->idleRange / 2);
+    }
 
     // halve movement speed if snared
     if (mob->appearanceData.iConditionBitFlag & CSB_BIT_DN_MOVE_SPEED)
