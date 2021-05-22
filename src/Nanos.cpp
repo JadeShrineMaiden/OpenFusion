@@ -34,7 +34,7 @@ void Nanos::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm) 
      */
     plr->level = level;
 
-    if (spendfm)
+    if (spendfm && nanoID < 37)
         Missions::updateFusionMatter(sock, -(int)Missions::AvatarGrowth[plr->level-1]["m_iReqBlob_NanoCreate"]);
 #endif
 

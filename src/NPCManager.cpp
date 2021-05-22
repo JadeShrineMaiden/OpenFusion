@@ -355,9 +355,49 @@ static void lordFuseStageThree(CNSocket *sock, BaseNPC *npc) {
         plr->instanceID, oldbody->appearanceData.iAngle);
 }
 
+static void sheetMusicShogunSplit(CNSocket *sock, BaseNPC *npc) {
+    Mob *oldbody = (Mob*)npc;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    // First Shinobi
+    Mob *shinobi = (Mob*)NPCManager::summonNPC(oldbody->x + Rand::rand(-100, 100), oldbody->y + Rand::rand(-100, 100), oldbody->z, plr->instanceID, 3335);
+
+    shinobi->appearanceData.iAngle = oldbody->appearanceData.iAngle;
+    NPCManager::updateNPCPosition(shinobi->appearanceData.iNPC_ID, shinobi->spawnX, shinobi->spawnY, shinobi->spawnZ,
+        plr->instanceID, oldbody->appearanceData.iAngle);
+
+    // Second Shinobi
+    Mob *shinobi2 = (Mob*)NPCManager::summonNPC(oldbody->x + Rand::rand(-100, 100), oldbody->y + Rand::rand(-100, 100), oldbody->z, plr->instanceID, 3335);
+
+    shinobi2->appearanceData.iAngle = oldbody->appearanceData.iAngle;
+    NPCManager::updateNPCPosition(shinobi2->appearanceData.iNPC_ID, shinobi2->spawnX, shinobi2->spawnY, shinobi2->spawnZ,
+        plr->instanceID, oldbody->appearanceData.iAngle);
+}
+
+static void fusionBellaStageTwo(CNSocket *sock, BaseNPC *npc) {
+    Mob *oldbody = (Mob*)npc;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    // Fusion Bella's second wind
+    Mob *newbody = (Mob*)NPCManager::summonNPC(oldbody->x, oldbody->y, oldbody->z, plr->instanceID, 3337);
+
+    newbody->appearanceData.iAngle = oldbody->appearanceData.iAngle;
+    NPCManager::updateNPCPosition(newbody->appearanceData.iNPC_ID, newbody->spawnX, newbody->spawnY, newbody->spawnZ,
+        plr->instanceID, oldbody->appearanceData.iAngle);
+
+    // Summon a shogun
+    Mob *shogun = (Mob*)NPCManager::summonNPC(oldbody->x, oldbody->y, oldbody->z, plr->instanceID, 3334);
+
+    shogun->appearanceData.iAngle = oldbody->appearanceData.iAngle;
+    NPCManager::updateNPCPosition(shogun->appearanceData.iNPC_ID, shogun->spawnX + Rand::rand(-100, 100), shogun->spawnY + Rand::rand(-50, 50), shogun->spawnZ,
+        plr->instanceID, oldbody->appearanceData.iAngle);
+}
+
 std::vector<NPCEvent> NPCManager::NPCEvents = {
     NPCEvent(2466, ON_KILLED, lordFuseStageTwo),
     NPCEvent(2467, ON_KILLED, lordFuseStageThree),
+    NPCEvent(3334, ON_KILLED, sheetMusicShogunSplit),
+    NPCEvent(3325, ON_KILLED, fusionBellaStageTwo),
 };
 
 #pragma endregion NPCEvents
