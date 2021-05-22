@@ -775,7 +775,7 @@ static void retreatStep(Mob *mob, time_t currTime) {
         std::vector<int> targetData = {1, 0, 0, 0, 0};
         for (auto& pwr : Combat::MobPowers)
             if (pwr.skillType == Nanos::SkillTable[110].skillType)
-                pwr.handle(mob, targetData, 110, Nanos::SkillTable[110].durationTime[0], Nanos::SkillTable[110].powerIntensity[0]);
+                pwr.handle(mob, targetData, 110, 1000, 1000);
         // clear outlying debuffs
         clearDebuff(mob);
     }
