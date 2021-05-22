@@ -18,16 +18,15 @@ using namespace Combat;
 std::map<int32_t, std::map<int8_t, Bullet>> Combat::Bullets;
 
 static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shouldCrit,
-                                         bool batteryBoost, int attackerStyle,
-                                         int defenderStyle, int difficulty) {
+                                    bool batteryBoost, int attackerStyle, int defenderStyle) {
     std::pair<int,int> ret = {0, 1};
-    if (attackPower + defensePower * 2 == 0)
+    if (attackPower+defensePower == 0)
         return ret;
 
     // base calculation
-    int damage = attackPower * attackPower / (attackPower + defensePower);
-    damage = std::max(10 + attackPower / 10, damage - (defensePower - attackPower / 6) * difficulty / 100);
-    damage = damage * (Rand::rand(40) + 80) / 100;
+    float damage = 0.66f * std::pow(attackPower, 2) / (attackPower+defensePower);
+    damage = std::max(50 + attackPower * 0.1f, damage);
+    damage *= Rand::randFloat(0.8f, 1.2f);
 
     // Adaptium/Blastons/Cosmix
     if (attackerStyle != -1 && defenderStyle != -1 && attackerStyle != defenderStyle) {
@@ -36,16 +35,16 @@ static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shou
         if (defenderStyle - attackerStyle == 2)
             defenderStyle -= 3;
         if (attackerStyle < defenderStyle)
-            damage = damage * 5 / 4;
+            damage *= 1.2f;
         else
-            damage = damage * 4 / 5;
+            damage *= 0.8f;
     }
 
     // weapon boosts
     if (batteryBoost)
-        damage = damage * 5 / 4;
+        damage *= 1.2f;
 
-    ret.first = damage;
+    ret.first = (int)damage;
     ret.second = 1;
 
     if (shouldCrit && Rand::rand(20) == 0) {
@@ -116,7 +115,7 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
         int difficulty = (int)mob->data["m_iNpcLevel"];
         damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 6 + difficulty),
-            Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
+            Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
 
         if (plr->batteryW >= 6 + difficulty)
             plr->batteryW -= 6 + difficulty;
@@ -149,7 +148,7 @@ void Combat::npcAttackPc(Mob *mob, time_t currTime) {
 
     INITVARPACKET(respbuf, sP_FE2CL_NPC_ATTACK_PCs, pkt, sAttackResult, atk);
 
-    auto damage = getDamage(450 + (int)mob->data["m_iPower"], plr->defense, false, false, -1, -1, 0);
+    auto damage = getDamage((int)mob->data["m_iPower"], plr->defense, false, false, -1, -1);
 
     if (!(plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE))
         plr->HP -= damage.first;
@@ -426,7 +425,7 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
             else
                 damage.first = plr->pointDamage;
 
-            damage = getDamage(damage.first, target->defense, true, (plr->batteryW > 6 + plr->level), -1, -1, 0);
+            damage = getDamage(damage.first, target->defense, true, (plr->batteryW > 6 + plr->level), -1, -1);
 
             if (plr->batteryW >= 6 + plr->level)
                 plr->batteryW -= 6 + plr->level;
@@ -465,7 +464,7 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
             int difficulty = (int)mob->data["m_iNpcLevel"];
 
             damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 6 + difficulty),
-                Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
+                Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
 
             if (plr->batteryW >= 6 + difficulty)
                 plr->batteryW -= 6 + difficulty;
@@ -668,7 +667,7 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
         damage.first = pkt->iTargetCnt > 1 ? bullet->groupDamage : bullet->pointDamage;
 
         int difficulty = (int)mob->data["m_iNpcLevel"];
-        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, bullet->weaponBoost, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
+        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, bullet->weaponBoost, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
 
         damage.first = hitMob(sock, mob, damage.first);
 
