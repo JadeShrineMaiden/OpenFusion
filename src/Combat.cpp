@@ -24,7 +24,7 @@ static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shou
         return ret;
 
     // base calculation
-    float damage = 0.66f * std::pow(attackPower, 2) / (attackPower+defensePower);
+    float damage = std::pow(attackPower, 2) / (attackPower + defensePower);
     damage = std::max(50 + attackPower * 0.1f, damage);
     damage *= Rand::randFloat(0.8f, 1.2f);
 
