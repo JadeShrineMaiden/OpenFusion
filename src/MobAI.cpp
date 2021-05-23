@@ -586,10 +586,6 @@ static void combatStep(Mob *mob, time_t currTime) {
 
         int targetX = plr->x;
         int targetY = plr->y;
-        if (mob->groupLeader != 0) {
-            targetX += mob->offsetX*distance/(mob->idleRange + 1);
-            targetY += mob->offsetY*distance/(mob->idleRange + 1);
-        }
 
         distanceToTravel = std::min(distance-mobRange+1, speed*2/5);
         auto targ = lerp(mob->x, mob->y, targetX, targetY, distanceToTravel);

@@ -149,7 +149,9 @@ static void loadXDT(json& xdtData) {
                     itemData.fireRate = item["m_iDelayTime"];
                     itemData.defense = item["m_iDefenseRat"];
                     itemData.gender = item["m_iReqSex"];
-                    itemData.weaponType = item["m_iEquipType"];
+                    itemData.weaponType = item["m_iTargetMode"];
+                    itemData.boostCost = item["m_iBatteryDrain"];
+                    itemData.boostDamage = item["m_iUp_power"];
                 }
                 else {
                     itemData.rarity = 1;

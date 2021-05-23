@@ -727,8 +727,8 @@ bool doBatteryDrain(Mob *mob, sSkillResult_BatteryDrain *respdata, int i, int32_
         respdata[i].iDrainN = 0;
     } else {
         respdata[i].bProtected = 0;
-        respdata[i].iDrainW = amount * (18 + (int)mob->data["m_iNpcLevel"]) / 36;
-        respdata[i].iDrainN = amount * (18 + (int)mob->data["m_iNpcLevel"]) / 36;
+        respdata[i].iDrainW = amount + rand() % 100;
+        respdata[i].iDrainN = amount + rand() % 100;
     }
 
     respdata[i].iBatteryW = plr->batteryW -= (respdata[i].iDrainW < plr->batteryW) ? respdata[i].iDrainW : plr->batteryW;

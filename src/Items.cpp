@@ -789,6 +789,8 @@ void Items::setItemStats(Player* plr) {
     plr->groupDamage = 8 + plr->level * 2;
     plr->fireRate = 0;
     plr->defense = 16 + plr->level * 4;
+    plr->boostCost = 0;
+    plr->boostDamage = 0;
 
     Item* itemStatsDat;
 
@@ -802,6 +804,10 @@ void Items::setItemStats(Player* plr) {
         plr->groupDamage += itemStatsDat->groupDamage;
         plr->fireRate += itemStatsDat->fireRate;
         plr->defense += itemStatsDat->defense;
+        plr->boostCost += itemStatsDat->boostCost;
+        plr->boostDamage += itemStatsDat->boostDamage;
+        if (i == 0)
+            plr->weaponType = itemStatsDat->weaponType;
     }
 }
 

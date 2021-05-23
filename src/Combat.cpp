@@ -16,11 +16,12 @@ using namespace Combat;
 
 /// Player Id -> Bullet Id -> Bullet
 std::map<int32_t, std::map<int8_t, Bullet>> Combat::Bullets;
+std::map<std::pair<CNSocket*, int32_t>, time_t> Combat::MultiHit;
 
-static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shouldCrit,
-                                    bool batteryBoost, int attackerStyle, int defenderStyle) {
+static std::pair<int,int> getDamage(int attackPower, int defensePower, int critRate,
+                                    int attackerStyle, int defenderStyle) {
     std::pair<int,int> ret = {0, 1};
-    if (attackPower+defensePower == 0)
+    if (attackPower + defensePower == 0)
         return ret;
 
     // base calculation
@@ -35,19 +36,15 @@ static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shou
         if (defenderStyle - attackerStyle == 2)
             defenderStyle -= 3;
         if (attackerStyle < defenderStyle)
-            damage *= 1.2f;
+            damage *= 1.25f;
         else
             damage *= 0.8f;
     }
 
-    // weapon boosts
-    if (batteryBoost)
-        damage *= 1.2f;
-
     ret.first = (int)damage;
     ret.second = 1;
 
-    if (shouldCrit && Rand::rand(20) == 0) {
+    if (Rand::rand(100) < critRate) {
         ret.first *= 2; // critical hit
         ret.second = 2;
     }
@@ -113,15 +110,21 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         else
             damage.first = plr->pointDamage;
 
-        int difficulty = (int)mob->data["m_iNpcLevel"];
-        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 6 + difficulty),
-            Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
+        if (plr->batteryW > 0) {
+            float boost = plr->boostCost > plr->batteryW ? (float)plr->batteryW / plr->boostCost : 1.0f;
+            damage.first += Rand::rand(plr->boostDamage * boost);
+        }
 
-        if (plr->batteryW >= 6 + difficulty)
-            plr->batteryW -= 6 + difficulty;
-        else
-            plr->batteryW = 0;
+        int baseCrit = 5;
 
+        if (plr->weaponType == 1 && Rand::rand(100) < 25) {
+            std::pair<CNSocket*, int32_t> key = std::make_pair(sock, mob->appearanceData.iNPC_ID);
+            time_t until = getTime() + 250;
+            MultiHit[key] = until;
+            baseCrit = 25;
+        }
+
+        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], baseCrit, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
         damage.first = hitMob(sock, mob, damage.first);
 
         respdata[i].iID = mob->appearanceData.iNPC_ID;
@@ -129,6 +132,8 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         respdata[i].iHP = mob->appearanceData.iHP;
         respdata[i].iHitFlag = damage.second; // hitscan, not a rocket or a grenade
     }
+
+    plr->batteryW = plr->boostCost > plr->batteryW ? 0 : plr->batteryW - plr->boostCost;
 
     resp->iBatteryW = plr->batteryW;
     sock->sendPacket(respbuf, P_FE2CL_PC_ATTACK_NPCs_SUCC);
@@ -143,12 +148,59 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     PlayerManager::sendToViewable(sock, respbuf, P_FE2CL_PC_ATTACK_NPCs);
 }
 
+static void pcAttackNpcSimple(CNSocket *sock, int32_t id, int damageDealt) {
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    if (NPCManager::NPCs.find(id) == NPCManager::NPCs.end()) {
+        std::cout << "[WARN] pcAttackNpcSimple: NPC ID not found" << std::endl;
+        return;
+    }
+
+
+    BaseNPC* npc = NPCManager::NPCs[id];
+    if (npc->type != EntityType::MOB) {
+        std::cout << "[WARN] pcAttackNpcsSimple: NPC is not a mob" << std::endl;
+        return;
+    }
+
+    Mob* mob = (Mob*)npc;
+    if (mob->appearanceData.iHP <= 0)
+        return;
+
+    INITVARPACKET(respbuf, sP_FE2CL_PC_ATTACK_NPCs_SUCC, resp, sAttackResult, respdata);
+
+    resp->iNPCCnt = 1;
+
+    std::pair<int,int> damage;
+    damage.first = damageDealt;
+
+    damage = getDamage(damage.first, (int)mob->data["m_iProtection"], 0, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
+    damage.first = hitMob(sock, mob, damage.first);
+
+    respdata->iID = mob->appearanceData.iNPC_ID;
+    respdata->iDamage = damage.first;
+    respdata->iHP = mob->appearanceData.iHP;
+    respdata->iHitFlag = damage.second; // hitscan, not a rocket or a grenade
+
+    resp->iBatteryW = plr->batteryW;
+    sock->sendPacket(respbuf, P_FE2CL_PC_ATTACK_NPCs_SUCC);
+
+    // a bit of a hack: these are the same size, so we can reuse the response packet
+    assert(sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) == sizeof(sP_FE2CL_PC_ATTACK_NPCs));
+    auto *resp1 = (sP_FE2CL_PC_ATTACK_NPCs*)respbuf;
+
+    resp1->iPC_ID = 0; // noone
+
+    // send to other players
+    PlayerManager::sendToViewable(sock, respbuf, P_FE2CL_PC_ATTACK_NPCs);
+}
+
 void Combat::npcAttackPc(Mob *mob, time_t currTime) {
     Player *plr = PlayerManager::getPlayer(mob->target);
 
     INITVARPACKET(respbuf, sP_FE2CL_NPC_ATTACK_PCs, pkt, sAttackResult, atk);
 
-    auto damage = getDamage((int)mob->data["m_iPower"], plr->defense, false, false, -1, -1);
+    auto damage = getDamage((int)mob->data["m_iPower"], plr->defense, 0, -1, -1);
 
     if (!(plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE))
         plr->HP -= damage.first;
@@ -425,12 +477,12 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
             else
                 damage.first = plr->pointDamage;
 
-            damage = getDamage(damage.first, target->defense, true, (plr->batteryW > 6 + plr->level), -1, -1);
+            if (plr->batteryW > 0) {
+                float boost = plr->boostCost > plr->batteryW ? (float)plr->batteryW / plr->boostCost : 1.0f;
+                damage.first += Rand::rand(plr->boostDamage * boost);
+            }
 
-            if (plr->batteryW >= 6 + plr->level)
-                plr->batteryW -= 6 + plr->level;
-            else
-                plr->batteryW = 0;
+            damage = getDamage(damage.first, target->defense, 5, -1, -1);
 
             target->HP -= damage.first;
 
@@ -461,15 +513,12 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
             else
                 damage.first = plr->pointDamage;
 
-            int difficulty = (int)mob->data["m_iNpcLevel"];
+            if (plr->batteryW > 0) {
+                float boost = plr->boostCost > plr->batteryW ? (float)plr->batteryW / plr->boostCost : 1.0f;
+                damage.first += Rand::rand(plr->boostDamage * boost);
+            }
 
-            damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 6 + difficulty),
-                Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
-
-            if (plr->batteryW >= 6 + difficulty)
-                plr->batteryW -= 6 + difficulty;
-            else
-                plr->batteryW = 0;
+            damage = getDamage(damage.first, (int)mob->data["m_iProtection"], 5, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
 
             damage.first = hitMob(sock, mob, damage.first);
 
@@ -481,6 +530,9 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
         }
     }
 
+    plr->batteryW = plr->boostCost > plr->batteryW ? 0 : plr->batteryW - plr->boostCost;
+
+    resp->iBatteryW = plr->batteryW;
     sock->sendPacket((void*)respbuf, P_FE2CL_PC_ATTACK_CHARs_SUCC, resplen);
 
     // a bit of a hack: these are the same size, so we can reuse the response packet
@@ -510,16 +562,20 @@ static int8_t addBullet(Player* plr, bool isGrenade) {
     }
 
     Bullet toAdd;
+    toAdd.x = plr->x;
+    toAdd.y = plr->y;
     toAdd.pointDamage = plr->pointDamage;
     toAdd.groupDamage = plr->groupDamage;
     // for grenade we need to send 1, for rocket - weapon id
     toAdd.bulletType = isGrenade ? 1 : plr->Equip[0].iID;
 
-    // temp solution Jade fix plz
     toAdd.weaponBoost = plr->batteryW > 0;
     if (toAdd.weaponBoost) {
-        int boostCost = Rand::rand(11) + 20;
-        plr->batteryW = boostCost > plr->batteryW ? 0 : plr->batteryW - boostCost;
+        float boost = plr->boostCost > plr->batteryW ? (float)plr->batteryW / plr->boostCost : 1.0f;
+        int boostDamCalc = Rand::rand(plr->boostDamage * boost);
+        toAdd.pointDamage += boostDamCalc;
+        toAdd.groupDamage += boostDamCalc;
+        plr->batteryW = plr->boostCost > plr->batteryW ? 0 : plr->batteryW - plr->boostCost;
     }
 
     Bullets[plr->iID][findId] = toAdd;
@@ -665,9 +721,15 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
         std::pair<int, int> damage;
 
         damage.first = pkt->iTargetCnt > 1 ? bullet->groupDamage : bullet->pointDamage;
+        // distance based damage boost for rockets
+        if (bullet->bulletType != 1) {
+            float dist = std::hypot(bullet->x - mob->x, bullet->y - mob->y);
+            std::cout << "Distance is: " << dist << std::endl;
+            damage.first += damage.first * std::min(2.0f, dist / 1500);
+            std::cout << "Damage Mult is: " << std::min(2.0f, dist / 1500) << std::endl;
+        }
 
-        int difficulty = (int)mob->data["m_iNpcLevel"];
-        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, bullet->weaponBoost, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
+        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], 0, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
 
         damage.first = hitMob(sock, mob, damage.first);
 
@@ -768,8 +830,33 @@ static void playerTick(CNServer *serv, time_t currTime) {
         lastHealTime = currTime;
 }
 
+static void multiHitStep(CNServer* serv, time_t currTime) {
+    // tick buffs
+    time_t timeStamp = currTime;
+    auto it = MultiHit.begin();
+    while (it != MultiHit.end()) {
+        // check remaining time
+        if (it->second > timeStamp) {
+            it++;
+        } else { // if time reached 0
+            Player* plr = PlayerManager::getPlayer(it->first.first);
+
+            if (plr == nullptr) {
+                it = MultiHit.erase(it);
+                continue;
+            }
+
+            if (plr->weaponType == 1)
+                pcAttackNpcSimple(it->first.first, it->first.second, plr->pointDamage * 0.8f);
+
+            it = MultiHit.erase(it);
+        }
+    }
+}
+
 void Combat::init() {
     REGISTER_SHARD_TIMER(playerTick, 2000);
+    REGISTER_SHARD_TIMER(multiHitStep, 1000);
 
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_NPCs, pcAttackNpcs);
 

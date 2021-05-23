@@ -16,10 +16,12 @@ struct Bullet {
     int groupDamage;
     bool weaponBoost;
     int bulletType;
+    int x, y;
 };
 
 namespace Combat {
     extern std::map<int32_t, std::map<int8_t, Bullet>> Bullets;
+    extern std::map<std::pair<CNSocket*, int32_t>, time_t> MultiHit;
 
     void init();
 
