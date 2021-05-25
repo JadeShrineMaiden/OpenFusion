@@ -16,7 +16,6 @@ using namespace Combat;
 
 /// Player Id -> Bullet Id -> Bullet
 std::map<int32_t, std::map<int8_t, Bullet>> Combat::Bullets;
-std::map<std::pair<CNSocket*, int32_t>, time_t> Combat::MultiHit;
 
 static std::pair<int,int> getDamage(int attackPower, int defensePower, int critRate,
                                     int attackerStyle, int defenderStyle) {
@@ -117,12 +116,19 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
         int baseCrit = 5;
 
-        if (plr->weaponType == 1 && Rand::rand(100) < 25) {
-            std::pair<CNSocket*, int32_t> key = std::make_pair(sock, mob->appearanceData.iNPC_ID);
-            time_t until = getTime() + 250;
-            MultiHit[key] = until;
-            baseCrit = 25;
-        }
+        if (plr->weaponType == 1) {
+            if (plr->combos == 2) { // melee weapons get guaranteed crit on third strike
+                baseCrit = 100;
+                plr->combos = 0;
+            } else {
+                baseCrit = 0;
+                plr->combos += 1;
+            }
+        } else
+            plr->combos = 0;
+
+        if (plr->weaponType == 4) // rifles get 10% crit instead of 5%
+            baseCrit = 10;
 
         damage = getDamage(damage.first, (int)mob->data["m_iProtection"], baseCrit, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
         damage.first = hitMob(sock, mob, damage.first);
@@ -143,53 +149,6 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     auto *resp1 = (sP_FE2CL_PC_ATTACK_NPCs*)respbuf;
 
     resp1->iPC_ID = plr->iID;
-
-    // send to other players
-    PlayerManager::sendToViewable(sock, respbuf, P_FE2CL_PC_ATTACK_NPCs);
-}
-
-static void pcAttackNpcSimple(CNSocket *sock, int32_t id, int damageDealt) {
-    Player* plr = PlayerManager::getPlayer(sock);
-
-    if (NPCManager::NPCs.find(id) == NPCManager::NPCs.end()) {
-        std::cout << "[WARN] pcAttackNpcSimple: NPC ID not found" << std::endl;
-        return;
-    }
-
-
-    BaseNPC* npc = NPCManager::NPCs[id];
-    if (npc->type != EntityType::MOB) {
-        std::cout << "[WARN] pcAttackNpcsSimple: NPC is not a mob" << std::endl;
-        return;
-    }
-
-    Mob* mob = (Mob*)npc;
-    if (mob->appearanceData.iHP <= 0)
-        return;
-
-    INITVARPACKET(respbuf, sP_FE2CL_PC_ATTACK_NPCs_SUCC, resp, sAttackResult, respdata);
-
-    resp->iNPCCnt = 1;
-
-    std::pair<int,int> damage;
-    damage.first = damageDealt;
-
-    damage = getDamage(damage.first, (int)mob->data["m_iProtection"], 0, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
-    damage.first = hitMob(sock, mob, damage.first);
-
-    respdata->iID = mob->appearanceData.iNPC_ID;
-    respdata->iDamage = damage.first;
-    respdata->iHP = mob->appearanceData.iHP;
-    respdata->iHitFlag = damage.second; // hitscan, not a rocket or a grenade
-
-    resp->iBatteryW = plr->batteryW;
-    sock->sendPacket(respbuf, P_FE2CL_PC_ATTACK_NPCs_SUCC);
-
-    // a bit of a hack: these are the same size, so we can reuse the response packet
-    assert(sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) == sizeof(sP_FE2CL_PC_ATTACK_NPCs));
-    auto *resp1 = (sP_FE2CL_PC_ATTACK_NPCs*)respbuf;
-
-    resp1->iPC_ID = 0; // noone
 
     // send to other players
     PlayerManager::sendToViewable(sock, respbuf, P_FE2CL_PC_ATTACK_NPCs);
@@ -356,6 +315,7 @@ static void combatEnd(CNSocket *sock, CNPacketData *data) {
 
     plr->inCombat = false;
     plr->healCooldown = 4000;
+    plr->combos = 0;
 }
 
 static void dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
@@ -830,33 +790,8 @@ static void playerTick(CNServer *serv, time_t currTime) {
         lastHealTime = currTime;
 }
 
-static void multiHitStep(CNServer* serv, time_t currTime) {
-    // tick buffs
-    time_t timeStamp = currTime;
-    auto it = MultiHit.begin();
-    while (it != MultiHit.end()) {
-        // check remaining time
-        if (it->second > timeStamp) {
-            it++;
-        } else { // if time reached 0
-            Player* plr = PlayerManager::getPlayer(it->first.first);
-
-            if (plr == nullptr) {
-                it = MultiHit.erase(it);
-                continue;
-            }
-
-            if (plr->weaponType == 1)
-                pcAttackNpcSimple(it->first.first, it->first.second, plr->pointDamage * 0.8f);
-
-            it = MultiHit.erase(it);
-        }
-    }
-}
-
 void Combat::init() {
     REGISTER_SHARD_TIMER(playerTick, 2000);
-    REGISTER_SHARD_TIMER(multiHitStep, 1000);
 
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_NPCs, pcAttackNpcs);
 
