@@ -44,7 +44,7 @@ static void movePlayer(CNSocket* sock, CNPacketData* data) {
         };
 
         // add a route to the queue; to be processed in Transport::stepNPCPathing()
-        Transport::lerp(&queue, from, to, NPC_DEFAULT_SPEED * 1.5); // little faster than typical
+        Transport::lerp(&queue, from, to, NPC_DEFAULT_SPEED * 3); // little faster than typical
         Transport::NPCQueues[follower->appearanceData.iNPC_ID] = queue;
     }
 }

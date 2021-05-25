@@ -86,6 +86,22 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
     resp->iNPCCnt = pkt->iNPCCnt;
 
+    int baseCrit = 5;
+
+    if (plr->weaponType == 1) {
+        if (plr->combos == 2) { // melee weapons get guaranteed crit on third strike
+            baseCrit = 100;
+            plr->combos = 0;
+        } else {
+            baseCrit = 0;
+            plr->combos += 1;
+        }
+    } else
+        plr->combos = 0;
+
+    if (plr->weaponType == 4) // rifles get 10% crit instead of 5%
+        baseCrit = 10;
+
     for (int i = 0; i < data->trCnt; i++) {
         if (NPCManager::NPCs.find(targets[i]) == NPCManager::NPCs.end()) {
             // not sure how to best handle this
@@ -113,22 +129,6 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
             float boost = plr->boostCost > plr->batteryW ? (float)plr->batteryW / plr->boostCost : 1.0f;
             damage.first += Rand::rand(plr->boostDamage * boost);
         }
-
-        int baseCrit = 5;
-
-        if (plr->weaponType == 1) {
-            if (plr->combos == 2) { // melee weapons get guaranteed crit on third strike
-                baseCrit = 100;
-                plr->combos = 0;
-            } else {
-                baseCrit = 0;
-                plr->combos += 1;
-            }
-        } else
-            plr->combos = 0;
-
-        if (plr->weaponType == 4) // rifles get 10% crit instead of 5%
-            baseCrit = 10;
 
         damage = getDamage(damage.first, (int)mob->data["m_iProtection"], baseCrit, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
         damage.first = hitMob(sock, mob, damage.first);
@@ -314,7 +314,7 @@ static void combatEnd(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     plr->inCombat = false;
-    plr->healCooldown = 4000;
+    plr->healCooldown = 5000;
     plr->combos = 0;
 }
 
@@ -684,9 +684,8 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
         // distance based damage boost for rockets
         if (bullet->bulletType != 1) {
             float dist = std::hypot(bullet->x - mob->x, bullet->y - mob->y);
-            std::cout << "Distance is: " << dist << std::endl;
-            damage.first += damage.first * std::min(2.0f, dist / 1500);
-            std::cout << "Damage Mult is: " << std::min(2.0f, dist / 1500) << std::endl;
+            if (dist > 500)
+                damage.first += damage.first * std::min(1.5f, (dist - 500) / 1000);
         }
 
         damage = getDamage(damage.first, (int)mob->data["m_iProtection"], 0, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
@@ -730,19 +729,22 @@ static void playerTick(CNServer *serv, time_t currTime) {
             dealGooDamage(sock, PC_MAXHEALTH(plr->level) * 3 / 20);
 
         // heal
-        if (currTime - lastHealTime >= 4000 && !plr->inCombat && plr->HP < PC_MAXHEALTH(plr->level)) {
-            if (currTime - lastHealTime - plr->healCooldown >= 4000) {
+        if (currTime - lastHealTime >= 5000 && !plr->inCombat && plr->HP < PC_MAXHEALTH(plr->level)) {
+            if (currTime - lastHealTime - plr->healCooldown >= 5000) {
                 plr->HP += PC_MAXHEALTH(plr->level) / 5;
                 if (plr->HP > PC_MAXHEALTH(plr->level))
                     plr->HP = PC_MAXHEALTH(plr->level);
                 transmit = true;
-            } else
-                plr->healCooldown -= 4000;
+            }
         }
+        
+        if (plr->healCooldown >= 2500)
+            plr->healCooldown -= 2500;
 
         for (int i = 0; i < 3; i++) {
             if (plr->activeNano != 0 && plr->equippedNanos[i] == plr->activeNano) { // spend stamina
-                plr->Nanos[plr->activeNano].iStamina -= 1 + plr->nanoDrainRate / 5;
+                if (currTime - lastHealTime >= 5000)
+                    plr->Nanos[plr->activeNano].iStamina -= plr->nanoDrainRate;
 
                 if (plr->Nanos[plr->activeNano].iStamina <= 0)
                     Nanos::summonNano(sock, -1, true); // unsummon nano silently
@@ -786,12 +788,12 @@ static void playerTick(CNServer *serv, time_t currTime) {
     }
 
     // if this was a heal tick, update the counter outside of the loop
-    if (currTime - lastHealTime >= 4000)
+    if (currTime - lastHealTime >= 5000)
         lastHealTime = currTime;
 }
 
 void Combat::init() {
-    REGISTER_SHARD_TIMER(playerTick, 2000);
+    REGISTER_SHARD_TIMER(playerTick, 2500);
 
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_NPCs, pcAttackNpcs);
 

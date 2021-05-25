@@ -412,13 +412,14 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
         x = target->x;
         y = target->y;
         z = target->z;
-    } else if (PLAYERID(plr->instanceID)) {
+    } else if (PLAYERID(plr->instanceID) && MAPNUM(plr->instanceID) != 150) {
         // respawn at entrance to the Lair
         x = plr->recallX;
         y = plr->recallY;
         z = plr->recallZ;
     } else {
         // no other choice; respawn in place
+        // required for the nano computress lair
         x = plr->x;
         y = plr->y;
         z = plr->z;
