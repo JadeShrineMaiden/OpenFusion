@@ -102,7 +102,7 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
     int timeDiff = now - EPRaces[sock].startTime;
     int score = 500 * EPRaces[sock].collectedRings.size() - 10 * timeDiff;
     if (score < 0) score = 0; // lol
-    int fm = score * plr->level * (1.0f / 36) * 0.3f;
+    int fm = score * plr->level * (1.0f / 36) * 0.1f;
 
     // we submit the ranking first...
     Database::RaceRanking postRanking = {};
