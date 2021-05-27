@@ -126,7 +126,7 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         else
             damage.first = plr->pointDamage;
 
-        if (plr->batteryW > 0) {
+        if (plr->batteryW > 0 && plr->boostCost > 0) {
             float boost = plr->boostCost > plr->batteryW ? (float)plr->batteryW / plr->boostCost : 1.0f;
             damage.first += Rand::rand(plr->boostDamage * boost);
         }
