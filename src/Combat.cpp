@@ -186,6 +186,58 @@ void Combat::npcAttackPc(Mob *mob, time_t currTime) {
     }
 }
 
+static int hitMobNPC(Mob *mob, int damage) {
+    // cannot kill mobs multiple times; cannot harm retreating mobs
+    if (mob->state != MobState::ROAMING && mob->state != MobState::COMBAT) {
+        return 0; // no damage
+    }
+
+    if (mob->skillStyle >= 0)
+        return 0; // don't hurt a mob casting corruption
+
+    mob->appearanceData.iHP -= damage;
+
+    // wake up sleeping monster
+    if (mob->appearanceData.iConditionBitFlag & CSB_BIT_MEZ) {
+        mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
+
+        INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
+        pkt1.eCT = 2;
+        pkt1.iID = mob->appearanceData.iNPC_ID;
+        pkt1.iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
+        NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
+    }
+
+    if (mob->appearanceData.iHP <= 0)
+        killMob(mob->target, mob);
+
+    return damage;
+}
+
+static void npcAttackNpcs(BaseNPC *npc, Mob *mob) {
+    const size_t resplen = sizeof(sP_FE2CL_CHARACTER_ATTACK_CHARACTERs) + sizeof(sAttackResult);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    memset(respbuf, 0, resplen);
+
+    sP_FE2CL_CHARACTER_ATTACK_CHARACTERs *pkt = (sP_FE2CL_CHARACTER_ATTACK_CHARACTERs*)respbuf;
+    sAttackResult *atk = (sAttackResult*)(respbuf + sizeof(sP_FE2CL_CHARACTER_ATTACK_CHARACTERs));
+
+    auto damage = getDamage(500, (int)mob->data["m_iProtection"], 0, -1, -1);
+    damage.first = hitMobNPC(mob, damage.first);
+
+    pkt->eCT = 4;
+    pkt->iCharacterID = npc->appearanceData.iNPC_ID;
+    pkt->iTargetCnt = 1;
+
+    atk->iID = mob->appearanceData.iNPC_ID;
+    atk->iDamage = damage.first;
+    atk->iHP = mob->appearanceData.iHP;
+    atk->iHitFlag = damage.second;
+
+    NPCManager::sendToViewable(npc, (void*)respbuf, P_FE2CL_CHARACTER_ATTACK_CHARACTERs, resplen);
+}
+
 int Combat::hitMob(CNSocket *sock, Mob *mob, int damage) {
     // cannot kill mobs multiple times; cannot harm retreating mobs
     if (mob->state != MobState::ROAMING && mob->state != MobState::COMBAT) {
@@ -744,7 +796,7 @@ static void playerTick(CNServer *serv, time_t currTime) {
         for (int i = 0; i < 3; i++) {
             if (plr->activeNano != 0 && plr->equippedNanos[i] == plr->activeNano) { // spend stamina
                 if (currTime - lastHealTime >= 5000)
-                    plr->Nanos[plr->activeNano].iStamina -= plr->nanoDrainRate;
+                    plr->Nanos[plr->activeNano].iStamina -= plr->nanoDrainRate + 1;
 
                 if (plr->Nanos[plr->activeNano].iStamina <= 0)
                     Nanos::summonNano(sock, -1, true); // unsummon nano silently
@@ -792,8 +844,76 @@ static void playerTick(CNServer *serv, time_t currTime) {
         lastHealTime = currTime;
 }
 
+static std::pair<int,int> lerp(int x1, int y1, int x2, int y2, int speed) {
+    std::pair<int,int> ret = {x1, y1};
+
+    if (speed == 0)
+        return ret;
+
+    int distance = hypot(x1 - x2, y1 - y2);
+
+    if (distance > speed) {
+
+        int lerps = distance / speed;
+
+        // interpolate only the first point
+        float frac = 1.0f / lerps;
+
+        ret.first = (x1 + (x2 - x1) * frac);
+        ret.second = (y1 + (y2 - y1) * frac);
+    } else {
+        ret.first = x2;
+        ret.second = y2;
+    }
+
+    return ret;
+}
+
+static void followerTick(CNServer *serv, time_t currTime) {
+    static time_t lastAttackTime = 0;
+    for (auto& pair : PlayerManager::players) {
+        Player *plr = pair.second;
+
+        if (plr->followerNPC == 0)
+            continue;
+
+        if (NPCManager::NPCs.find(plr->followerNPC) == NPCManager::NPCs.end()) {
+            plr->followerNPC = 0;
+            continue;
+        }
+
+        BaseNPC* npc = NPCManager::NPCs[plr->followerNPC];
+        if (currTime - lastAttackTime >= 1000) {
+            Mob* mob = MobAI::getNearestMob(&plr->viewableChunks, npc->x, npc->y, npc->z);
+            if (mob != nullptr) {
+                int dist = hypot(mob->x - npc->x, mob->y - npc->y);
+                if (mob->appearanceData.iHP > 0 && dist < 500)
+                    npcAttackNpcs(npc, mob);
+            }
+        }
+
+        int distance = hypot(plr->x - npc->x, plr->y - npc->y);
+        int distanceToTravel = std::min(distance - 200, 320);
+        if (distanceToTravel < 1) continue;
+        auto targ = lerp(npc->x, npc->y, plr->x, plr->y, distanceToTravel);
+        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, targ.first, targ.second, npc->z, npc->instanceID, npc->appearanceData.iAngle);
+
+        INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
+        pkt.iNPC_ID = npc->appearanceData.iNPC_ID;
+        pkt.iSpeed = 800;
+        pkt.iToX = npc->x = targ.first;
+        pkt.iToY = npc->y = targ.second;
+        pkt.iToZ = plr->z;
+        pkt.iMoveStyle = 1;
+        NPCManager::sendToViewable(npc, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
+    }
+    if (currTime - lastAttackTime >= 1000)
+        lastAttackTime = currTime;
+}
+
 void Combat::init() {
     REGISTER_SHARD_TIMER(playerTick, 2500);
+    REGISTER_SHARD_TIMER(followerTick, 400);
 
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_NPCs, pcAttackNpcs);
 

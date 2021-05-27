@@ -807,3 +807,24 @@ void MobAI::step(CombatNPC *npc, time_t currTime) {
         break;
     }
 }
+
+Mob* MobAI::getNearestMob(std::set<Chunk*>* chunks, int X, int Y, int Z) {
+    Mob* npc = nullptr;
+    int lastDist = INT_MAX;
+    for (auto c = chunks->begin(); c != chunks->end(); c++) { // haha get it
+        Chunk* chunk = *c;
+        for (auto ent = chunk->entities.begin(); ent != chunk->entities.end(); ent++) {
+            if (ent->type != EntityType::MOB)
+                continue;
+
+            Mob* npcTemp = (Mob*)ent->getEntity();
+            int distXY = std::hypot(X - npcTemp->x, Y - npcTemp->y);
+            int dist = std::hypot(distXY, Z - npcTemp->z);
+            if (dist < lastDist) {
+                npc = npcTemp;
+                lastDist = dist;
+            }
+        }
+    }
+    return npc;
+}

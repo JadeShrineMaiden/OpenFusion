@@ -304,9 +304,6 @@ static void stepNPCPathing() {
             move.iToY = point.y;
             move.iToZ = point.z;
             move.iSpeed = distanceBetween;
-            
-            if (move.iSpeed > NPC_DEFAULT_SPEED * 1.25f)
-                move.iMoveStyle = 1;
 
             NPCManager::sendToViewable(npc, &move, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
             break;

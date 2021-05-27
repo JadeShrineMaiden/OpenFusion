@@ -104,4 +104,5 @@ namespace MobAI {
     void followToCombat(Mob *mob);
     void groupRetreat(Mob *mob);
     void enterCombat(CNSocket *sock, Mob *mob);
+    Mob* getNearestMob(std::set<Chunk*>* chunks, int X, int Y, int Z);
 }

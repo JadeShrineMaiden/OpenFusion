@@ -374,9 +374,8 @@ void Groups::kickNpcGroup(CNSocket* sock, BaseNPC* npc) {
     }
 
     sock->sendPacket((void*)&respbuf, P_FE2CL_REP_NPC_GROUP_INVITE_SUCC, resplen);
-    if (TableData::RunningNPCPaths.find(plr->iID) != TableData::RunningNPCPaths.end())
-        TableData::RunningNPCPaths.erase(plr->iID);
     Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // erase existing points
+    plr->followerNPC = 0;
     plr->groupNPC = 0;
 }
 
@@ -466,8 +465,11 @@ static void requestNpcGroup(CNSocket* sock, CNPacketData* data) {
             return;
         }
         // all other cases, the npc just follows the player
-        std::vector<BaseNPC*> pathPoints;
-        TableData::RunningNPCPaths[plr->iID] = std::make_pair(npc, pathPoints); // HACK: Create a gruntwork npc with no points
+        for (auto& pair : PlayerManager::players) {
+            if (pair.second->followerNPC == npc->appearanceData.iNPC_ID)
+                pair.second->followerNPC = 0;
+        }
+        plr->followerNPC = npc->appearanceData.iNPC_ID;
         return;
     }
 }
