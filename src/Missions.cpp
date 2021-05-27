@@ -360,7 +360,7 @@ void Missions::taskStart(CNSocket* sock, int taskNum) {
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
 
     // after success, check for instance, this is for multi-instance lair support
-    if (task["m_iRequireInstanceID"] != MAPNUM(plr->instanceID)) {
+    if (task["m_iRequireInstanceID"] != 0 && task["m_iRequireInstanceID"] != MAPNUM(plr->instanceID)) {
         int failTaskID = task["m_iFOutgoingTask"];
         if (failTaskID != 0) {
             Missions::quitTask(sock, taskNum, false);
@@ -623,7 +623,7 @@ void Missions::failInstancedMissions(CNSocket* sock) {
             continue; // sanity check
 
         TaskData* task = Missions::Tasks[taskNum];
-        if (task->task["m_iRequireInstanceID"] != MAPNUM(plr->instanceID)) { // mission is instanced
+        if (task->task["m_iRequireInstanceID"] != 0 && task->task["m_iRequireInstanceID"] != MAPNUM(plr->instanceID)) { // mission is instanced
             int failTaskID = task->task["m_iFOutgoingTask"];
             if (failTaskID != 0) {
                 Missions::quitTask(sock, taskNum, false);
