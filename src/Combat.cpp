@@ -68,6 +68,7 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
     if (plr->suspicionRating > 10000) { // kill the socket when the player is too suspicious
         sock->kill();
+        CNShardServer::_killConnection(sock);
         return;
     }
 
@@ -693,6 +694,7 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
 
     if (plr->suspicionRating > 10000) { // kill the socket when the player is too suspicious
         sock->kill();
+        CNShardServer::_killConnection(sock);
         return;
     }
 
