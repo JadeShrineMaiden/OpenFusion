@@ -735,14 +735,15 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
         std::pair<int, int> damage;
 
         damage.first = pkt->iTargetCnt > 1 ? bullet->groupDamage : bullet->pointDamage;
+
+        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], 0, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
+
         // distance based damage boost for rockets
         if (bullet->bulletType != 1) {
             float dist = std::hypot(bullet->x - mob->x, bullet->y - mob->y);
             if (dist > 500)
-                damage.first += damage.first * std::min(1.5f, (dist - 500) / 1000);
+                damage.first += damage.first * std::min(2.0f, (dist - 500) / 750);
         }
-
-        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], 0, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
 
         damage.first = hitMob(sock, mob, damage.first);
 

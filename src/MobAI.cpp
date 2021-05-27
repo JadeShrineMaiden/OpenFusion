@@ -614,6 +614,8 @@ static void combatStep(Mob *mob, time_t currTime) {
     if (distance <= mobRange || distanceToTravel < speed*2/5) {
         if (mob->nextAttack == 0 || currTime >= mob->nextAttack) {
             mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
+            if (mob->appearanceData.iConditionBitFlag & CSB_BIT_DN_MOVE_SPEED)
+                mob->nextAttack += (int)mob->data["m_iDelayTime"] * 100; // make the mob slower attacking when snared
             Combat::npcAttackPc(mob, currTime);
         }
     }

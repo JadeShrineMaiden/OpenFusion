@@ -392,7 +392,7 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
     } else {
         move = true;
         if (reviveData->iRegenType != 5)
-            plr->HP = PC_MAXHEALTH(plr->level);
+            plr->HP = (int)(PC_MAXHEALTH(plr->level) * 0.6f);
     }
 
     for (int i = 0; i < 3; i++) {
