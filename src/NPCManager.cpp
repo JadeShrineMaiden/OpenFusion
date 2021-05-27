@@ -185,7 +185,7 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
         uint64_t instanceID = Warps[warpId].instanceID;
 
         // if warp requires you to be on a mission, it's gotta be a unique instance
-        if (Warps[warpId].limitTaskID != 0 || instanceID == 14) { // 14 is a special case for the Time Lab
+        if (Warps[warpId].limitTaskID != 0 || instanceID == 14 || Warps[warpId].itemID != 0) { // 14 is a special case for the Time Lab
             instanceID += ((uint64_t)plr->iIDGroup << 32); // upper 32 bits are leader ID
             Chunking::createInstance(instanceID);
 
@@ -194,6 +194,29 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
             plr->recallY = Warps[warpId].y;
             plr->recallZ = Warps[warpId].z + RESURRECT_HEIGHT;
             plr->recallInstance = instanceID;
+        }
+
+        if (Warps[warpId].itemID != 0) {
+            int slotNum = Items::findItemSlot(plr, Warps[warpId].itemType, Warps[warpId].itemID);
+            if (slotNum == -1) { // fail the warp
+                INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_FAIL, failResp);
+                failResp.iErrorCode = 0; // TODO: error code
+                sock->sendPacket(failResp, P_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_FAIL);
+                return;
+            } else {
+                INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_SUCC, uresp);
+                uresp.iPC_ID = plr->iID;
+                uresp.eIL = 1;
+                uresp.iSlotNum = slotNum;
+                uresp.iTargetCnt = 1;
+                sItemBase itemTaken = plr->Inven[slotNum];
+                itemTaken.iOpt -= 1;
+                if (itemTaken.iOpt == 0)
+                    itemTaken = {};
+                plr->Inven[slotNum] = itemTaken;
+                uresp.RemainItem = itemTaken;
+                sock->sendPacket((void*)&uresp, P_FE2CL_REP_PC_ITEM_USE_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_USE_SUCC));
+            }
         }
 
         if (plr->iID == plr->iIDGroup && plr->groupCnt == 1)
@@ -360,17 +383,17 @@ static void sheetMusicShogunSplit(CNSocket *sock, BaseNPC *npc) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     // First Shinobi
-    Mob *shinobi = (Mob*)NPCManager::summonNPC(oldbody->x + Rand::rand(-100, 100), oldbody->y + Rand::rand(-100, 100), oldbody->z, plr->instanceID, 3335);
+    Mob *shinobi = (Mob*)NPCManager::summonNPC(oldbody->x, oldbody->y, oldbody->z, plr->instanceID, 3335);
 
     shinobi->appearanceData.iAngle = oldbody->appearanceData.iAngle;
-    NPCManager::updateNPCPosition(shinobi->appearanceData.iNPC_ID, shinobi->spawnX, shinobi->spawnY, shinobi->spawnZ,
+    NPCManager::updateNPCPosition(shinobi->appearanceData.iNPC_ID, shinobi->spawnX + Rand::rand(50, 100), shinobi->spawnY + Rand::rand(50, 100), shinobi->spawnZ,
         plr->instanceID, oldbody->appearanceData.iAngle);
 
     // Second Shinobi
-    Mob *shinobi2 = (Mob*)NPCManager::summonNPC(oldbody->x + Rand::rand(-100, 100), oldbody->y + Rand::rand(-100, 100), oldbody->z, plr->instanceID, 3335);
+    Mob *shinobi2 = (Mob*)NPCManager::summonNPC(oldbody->x, oldbody->y, oldbody->z, plr->instanceID, 3335);
 
     shinobi2->appearanceData.iAngle = oldbody->appearanceData.iAngle;
-    NPCManager::updateNPCPosition(shinobi2->appearanceData.iNPC_ID, shinobi2->spawnX, shinobi2->spawnY, shinobi2->spawnZ,
+    NPCManager::updateNPCPosition(shinobi2->appearanceData.iNPC_ID, shinobi2->spawnX - Rand::rand(50, 100), shinobi2->spawnY - Rand::rand(50, 100), shinobi2->spawnZ,
         plr->instanceID, oldbody->appearanceData.iAngle);
 }
 
@@ -389,8 +412,50 @@ static void fusionBellaStageTwo(CNSocket *sock, BaseNPC *npc) {
     Mob *shogun = (Mob*)NPCManager::summonNPC(oldbody->x, oldbody->y, oldbody->z, plr->instanceID, 3334);
 
     shogun->appearanceData.iAngle = oldbody->appearanceData.iAngle;
-    NPCManager::updateNPCPosition(shogun->appearanceData.iNPC_ID, shogun->spawnX + Rand::rand(-100, 100), shogun->spawnY + Rand::rand(-50, 50), shogun->spawnZ,
+    NPCManager::updateNPCPosition(shogun->appearanceData.iNPC_ID, shogun->spawnX + Rand::rand(-100, 100), shogun->spawnY + Rand::rand(-100, 100), shogun->spawnZ,
         plr->instanceID, oldbody->appearanceData.iAngle);
+}
+
+static void fusionAlbedo(CNSocket *sock, BaseNPC *npc) {
+    Mob *oldbody = (Mob*)npc;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    // It was actually Fusion Albedo
+    Mob *newbody = (Mob*)NPCManager::summonNPC(oldbody->x, oldbody->y, oldbody->z, plr->instanceID, 3177);
+
+    newbody->appearanceData.iAngle = oldbody->appearanceData.iAngle;
+    NPCManager::updateNPCPosition(newbody->appearanceData.iNPC_ID, newbody->spawnX, newbody->spawnY, newbody->spawnZ,
+        plr->instanceID, oldbody->appearanceData.iAngle);
+}
+
+static void fusionEchoStageTwo(CNSocket *sock, BaseNPC *npc) {
+    Mob *oldbody = (Mob*)npc;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    Mob *echo = (Mob*)NPCManager::summonNPC(oldbody->x, oldbody->y, oldbody->z, plr->instanceID, 3168);
+
+    echo->appearanceData.iAngle = oldbody->appearanceData.iAngle;
+    NPCManager::updateNPCPosition(echo->appearanceData.iNPC_ID, echo->spawnX - Rand::rand(100, 200), echo->spawnY - Rand::rand(100, 200), echo->spawnZ,
+        plr->instanceID, oldbody->appearanceData.iAngle);
+
+    Mob *echo2 = (Mob*)NPCManager::summonNPC(oldbody->x, oldbody->y, oldbody->z, plr->instanceID, 3168);
+
+    echo2->appearanceData.iAngle = oldbody->appearanceData.iAngle;
+    NPCManager::updateNPCPosition(echo2->appearanceData.iNPC_ID, echo2->spawnX + Rand::rand(100, 200), echo2->spawnY + Rand::rand(100, 200), echo2->spawnZ,
+        plr->instanceID, oldbody->appearanceData.iAngle);
+}
+
+static void fusionEchoStageThree(CNSocket *sock, BaseNPC *npc) {
+    Mob *oldbody = (Mob*)npc;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    for (int i = 0; i < 4; i++) {
+        Mob *echo = (Mob*)NPCManager::summonNPC(oldbody->x, oldbody->y, oldbody->z, plr->instanceID, 3171);
+
+        echo->appearanceData.iAngle = oldbody->appearanceData.iAngle;
+        NPCManager::updateNPCPosition(echo->appearanceData.iNPC_ID, echo->spawnX + Rand::rand(-200, 200), echo->spawnY + Rand::rand(-200, 200), echo->spawnZ,
+            plr->instanceID, oldbody->appearanceData.iAngle);
+    }
 }
 
 std::vector<NPCEvent> NPCManager::NPCEvents = {
@@ -398,6 +463,9 @@ std::vector<NPCEvent> NPCManager::NPCEvents = {
     NPCEvent(2467, ON_KILLED, lordFuseStageThree),
     NPCEvent(3334, ON_KILLED, sheetMusicShogunSplit),
     NPCEvent(3325, ON_KILLED, fusionBellaStageTwo),
+    NPCEvent(3180, ON_KILLED, fusionAlbedo),
+    NPCEvent(3172, ON_KILLED, fusionEchoStageTwo),
+    NPCEvent(3168, ON_KILLED, fusionEchoStageThree),
 };
 
 #pragma endregion NPCEvents

@@ -742,6 +742,17 @@ int Items::findFreeSlot(Player *plr) {
     return -1;
 }
 
+int Items::findItemSlot(Player *plr, int type, int id) {
+    int i;
+
+    for (i = 0; i < AINVEN_COUNT; i++)
+        if (plr->Inven[i].iType == type && plr->Inven[i].iID == id && plr->Inven[i].iOpt > 0)
+            return i;
+
+    // not found
+    return -1;
+}
+
 Item* Items::getItemData(int32_t id, int32_t type) {
     if(ItemData.find(std::make_pair(id, type)) !=  ItemData.end())
         return &ItemData[std::make_pair(id, type)];

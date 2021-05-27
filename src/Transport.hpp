@@ -15,7 +15,7 @@ struct Vec3 {
 };
 
 struct WarpLocation {
-    int x, y, z, instanceID, isInstance, limitTaskID, npcID;
+    int x, y, z, instanceID, isInstance, limitTaskID, npcID, itemType, itemID;
 };
 
 struct TransportRoute {

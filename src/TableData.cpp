@@ -72,7 +72,7 @@ static void loadXDT(json& xdtData) {
 
         for (json::iterator _warp = warpData.begin(); _warp != warpData.end(); _warp++) {
             auto warp = _warp.value();
-            WarpLocation warpLoc = { warp["m_iToX"], warp["m_iToY"], warp["m_iToZ"], warp["m_iToMapNum"], warp["m_iIsInstance"], warp["m_iLimit_TaskID"], warp["m_iNpcNumber"] };
+            WarpLocation warpLoc = { warp["m_iToX"], warp["m_iToY"], warp["m_iToZ"], warp["m_iToMapNum"], warp["m_iIsInstance"], warp["m_iLimit_TaskID"], warp["m_iNpcNumber"], warp["m_iLimit_UseItemType"], warp["m_iLimit_UseItemID"] };
             int warpID = warp["m_iWarpNumber"];
             NPCManager::Warps[warpID] = warpLoc;
         }

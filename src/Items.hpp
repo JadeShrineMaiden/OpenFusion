@@ -114,6 +114,7 @@ namespace Items {
     void giveMobDrop(CNSocket *sock, Mob *mob, const DropRoll& rolled, const DropRoll& eventRolled);
 
     int findFreeSlot(Player *plr);
+    int findItemSlot(Player *plr, int type, int id);
     Item* getItemData(int32_t id, int32_t type);
     void checkItemExpire(CNSocket* sock, Player* player);
     void setItemStats(Player* plr);
