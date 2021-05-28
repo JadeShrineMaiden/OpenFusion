@@ -109,9 +109,10 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
         plr->lastAngle = plr->angle;
     }
 
-    Missions::failInstancedMissions(sock); // fail any instanced missions
-
     uint64_t fromInstance = plr->instanceID; // pre-warp instance, saved for post-warp
+    plr->instanceID = I; // temporarily
+    Missions::failInstancedMissions(sock); // fail any instanced missions
+    plr->instanceID = fromInstance;
 
     if (I == INSTANCE_OVERWORLD || (I != fromInstance && fromInstance != 0)) {
         // annoying but necessary to set the flag back
@@ -266,6 +267,16 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
             break;
         response.PCLoadData2CL.aRunningQuest[i].m_aCurrTaskID = plr.tasks[i];
         TaskData &task = *Missions::Tasks[plr.tasks[i]];
+
+        if (task["m_iRequireInstanceID"] != 0) { // mission is instanced
+            int failTaskID = task["m_iFOutgoingTask"];
+            if (failTaskID != 0) {
+                plr.tasks[i] = failTaskID;
+                response.PCLoadData2CL.aRunningQuest[i].m_aCurrTaskID = plr.tasks[i];
+                continue;
+            }
+        }
+
         for (int j = 0; j < 3; j++) {
             response.PCLoadData2CL.aRunningQuest[i].m_aKillNPCID[j] = (int)task["m_iCSUEnemyID"][j];
             response.PCLoadData2CL.aRunningQuest[i].m_aKillNPCCount[j] = plr.RemainingNPCCount[i][j];
@@ -314,8 +325,6 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     // set player equip stats
     Items::setItemStats(getPlayer(sock));
-
-    Missions::failInstancedMissions(sock);
 
     sendNanoBookSubset(sock);
 

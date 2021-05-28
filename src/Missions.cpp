@@ -493,11 +493,10 @@ void Missions::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
         failResp.iTaskNum = taskNum;
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_TASK_END_FAIL, sizeof(sP_FE2CL_REP_PC_TASK_END_FAIL));
 
-        if (NPCManager::NPCs.find(plr->groupNPC) == NPCManager::NPCs.end())
-            return;
-
-        BaseNPC* npc = NPCManager::NPCs[plr->groupNPC];
-        Groups::kickNpcGroup(sock, npc);
+        if (plr->groupNPC != 0 && NPCManager::NPCs.find(plr->groupNPC) != NPCManager::NPCs.end()) {
+            BaseNPC* npc = NPCManager::NPCs[plr->groupNPC];
+            Groups::kickNpcGroup(sock, npc);
+        }
     }
 
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_STOP_SUCC, response);
