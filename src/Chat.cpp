@@ -2,6 +2,7 @@
 #include "PlayerManager.hpp"
 #include "Groups.hpp"
 #include "CustomCommands.hpp"
+#include "NpcManager.hpp"
 
 #include <assert.h>
 
@@ -21,6 +22,15 @@ static void chatHandler(CNSocket* sock, CNPacketData* data) {
 
     if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__MUTE_FREECHAT)
         return;
+
+    if (plr->vanished && plr->followerNPC != 0 && NPCManager::NPCs.find(plr->followerNPC) != NPCManager::NPCs.end()) {
+        INITSTRUCT(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, res);
+        U8toU16(fullChat, (char16_t*)&res.szFreeChat, sizeof(res.szFreeChat));
+        res.iPC_ID = plr->followerNPC;
+        res.iEmoteCode = 421;
+        NPCManager::sendToViewable(NPCManager::NPCs[plr->followerNPC], &res, P_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC));
+        return;
+    }
 
     std::string logLine = "[FreeChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
 

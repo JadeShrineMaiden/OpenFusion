@@ -890,20 +890,22 @@ static void followerTick(CNServer *serv, time_t currTime) {
             Mob* mob = MobAI::getNearestMob(&plr->viewableChunks, npc->x, npc->y, npc->z);
             if (mob != nullptr) {
                 int dist = hypot(mob->x - npc->x, mob->y - npc->y);
-                if (mob->appearanceData.iHP > 0 && dist < 500)
+                if (mob->appearanceData.iHP > 0 && dist < plr->npcRange)
                     npcAttackNpcs(npc, mob);
             }
         }
 
         int distance = hypot(plr->x - npc->x, plr->y - npc->y);
-        int distanceToTravel = std::min(distance - 200, 320);
+        if (!plr->vanished)
+            distance -= 200;
+        int distanceToTravel = std::min(distance, 240);
         if (distanceToTravel < 1) continue;
         auto targ = lerp(npc->x, npc->y, plr->x, plr->y, distanceToTravel);
         NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, targ.first, targ.second, npc->z, npc->instanceID, npc->appearanceData.iAngle);
 
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
         pkt.iNPC_ID = npc->appearanceData.iNPC_ID;
-        pkt.iSpeed = 800;
+        pkt.iSpeed = 600;
         pkt.iToX = npc->x = targ.first;
         pkt.iToY = npc->y = targ.second;
         pkt.iToZ = plr->z;
