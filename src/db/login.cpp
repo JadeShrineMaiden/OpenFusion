@@ -534,3 +534,27 @@ bool Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save, int accountId) {
     sqlite3_finalize(stmt);
     return rc == SQLITE_DONE;
 }
+
+std::vector<std::string> Database::getListOfNames() {
+    std::lock_guard<std::mutex> lock(dbCrit);
+    std::vector<std::string> names;
+
+    const char* sql = R"(
+        SELECT
+            PlayerID, FirstName, LastName
+        FROM Players
+        WHERE NameCheck = 0;
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        std::string placeHolder = std::to_string(sqlite3_column_int(stmt, 0));
+        placeHolder += " " + std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+        placeHolder += " " + std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+        names.push_back(placeHolder);
+    }
+
+    sqlite3_finalize(stmt);
+    return names;
+}

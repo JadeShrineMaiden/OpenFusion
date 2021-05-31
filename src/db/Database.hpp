@@ -75,6 +75,7 @@ namespace Database {
     void evaluateCustomName(int characterID, CustomName decision);
     /// returns true if query succeeded
     bool changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save, int accountId);
+    std::vector<std::string> getListOfNames();
 
     // getting players
     void getPlayer(Player* plr, int id);

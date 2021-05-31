@@ -1303,6 +1303,34 @@ static void becomePlayerCommand(std::string full, std::vector<std::string>& args
     plr->vanished = false;
 }
 
+static void evaluateNameCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    if (args.size() < 3) {
+        Chat::sendServerMessage(sock, "Usage: /evaluatename <id> <approve=1/disapprove=2>");
+        return;
+    }
+
+    char *rest;
+    int id = std::strtol(args[1].c_str(), &rest, 10);
+    int approval = std::strtol(args[2].c_str(), &rest, 10);
+    Database::CustomName decision = Database::CustomName::DISAPPROVE;
+    if (approval == 1) {
+        decision = Database::CustomName::APPROVE;
+        Chat::sendServerMessage(sock, "[EVALNAME] Name Approved");
+    } else
+        Chat::sendServerMessage(sock, "[EVALNAME] Name Disapproved");
+
+    Database::evaluateCustomName(id, decision);
+}
+
+static void pendingNamesCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    std::vector<std::string> names = Database::getListOfNames();
+
+    Chat::sendServerMessage(sock, "<Players Pending>");
+
+    for (int i = 0; i < names.size(); i++)
+        Chat::sendServerMessage(sock, "PlayerID - " + names[i]);
+}
+
 static void registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {
     commands[cmd] = ChatCommand(requiredLevel, handlr, help);
 }
@@ -1349,4 +1377,6 @@ void CustomCommands::init() {
     registerCommand("becomenpc", 30, becomeNpcCommand, "Self explanatory.");
     registerCommand("warptoqt", 50, warpToQuestCommand, "warps you to the objective");
     registerCommand("becomeplayer", 30, becomePlayerCommand, "deletes npc and reverts you");
+    registerCommand("evaluatename", 50, evaluateNameCommand, "approve or dispprove a player's name");
+    registerCommand("pendingnames", 50, pendingNamesCommand, "get a list of pending player names");
 }
