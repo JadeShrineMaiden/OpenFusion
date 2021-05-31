@@ -2,7 +2,7 @@
 #include "PlayerManager.hpp"
 #include "Groups.hpp"
 #include "CustomCommands.hpp"
-#include "NpcManager.hpp"
+#include "NPCManager.hpp"
 
 #include <assert.h>
 
