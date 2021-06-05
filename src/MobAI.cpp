@@ -671,27 +671,37 @@ static void roamingStep(Mob *mob, time_t currTime) {
         return;
     incNextMovement(mob, currTime);
 
-    int xStart = mob->spawnX - mob->idleRange;
-    int yStart = mob->spawnY - mob->idleRange;
+    int xStart = mob->spawnX - mob->idleRange/2;
+    int yStart = mob->spawnY - mob->idleRange/2;
     int speed = mob->speed;
 
     // some mobs don't move (and we mustn't divide/modulus by zero)
     if (mob->idleRange == 0 || speed == 0)
         return;
 
-    int farX, farY;
+    int farX, farY, distance;
+    int minDistance = mob->idleRange / 2;
 
     // pick a random destination
+    farX = xStart + Rand::rand(mob->idleRange);
+    farY = yStart + Rand::rand(mob->idleRange);
+
+    distance = std::abs(std::max(farX - mob->x, farY - mob->y));
+    if (distance == 0)
+        distance += 1; // hack to avoid FPE
+
+    // if it's too short a walk, go further in that direction
+    farX = mob->x + (farX - mob->x) * minDistance / distance;
+    farY = mob->y + (farY - mob->y) * minDistance / distance;
+
+    // but don't got out of bounds
     if (mob->instanceID == 0) {
-        farX = xStart + Rand::rand(mob->idleRange);
-        farY = yStart + Rand::rand(mob->idleRange);
+        farX = std::clamp(farX, xStart, xStart + mob->idleRange);
+        farY = std::clamp(farY, yStart, yStart + mob->idleRange);
     } else {
         // make mobs in lairs and infected zones move around less
-        farX = mob->spawnX - 250 + Rand::rand(250);
-        farY = mob->spawnY - 250 + Rand::rand(250);
-        speed = hypot(mob->x - farX, mob->y - farY) - 1;
-        if (speed < 1)
-            speed = 1;
+        farX = std::clamp(farX, xStart, xStart + mob->idleRange / 2);
+        farY = std::clamp(farY, yStart, yStart + mob->idleRange / 2);
     }
 
     // halve movement speed if snared
