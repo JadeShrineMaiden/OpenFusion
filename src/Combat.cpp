@@ -209,8 +209,13 @@ static int hitMobNPC(Mob *mob, int damage) {
         NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
     }
 
-    if (mob->appearanceData.iHP <= 0)
-        killMob(mob->target, mob);
+    if (mob->appearanceData.iHP <= 0) {
+        if (mob->target == nullptr) {
+            mob->appearanceData.iHP = 1;
+            return 0;
+        } else
+            killMob(mob->target, mob);
+    }
 
     return damage;
 }
