@@ -18,7 +18,7 @@ using namespace Combat;
 std::map<int32_t, std::map<int8_t, Bullet>> Combat::Bullets;
 
 static std::pair<int,int> getDamage(int attackPower, int defensePower, int critRate,
-                                    int attackerStyle, int defenderStyle) {
+                                    int critPower, int attackerStyle, int defenderStyle) {
     std::pair<int,int> ret = {0, 1};
     if (attackPower + defensePower == 0)
         return ret;
@@ -44,7 +44,7 @@ static std::pair<int,int> getDamage(int attackPower, int defensePower, int critR
     ret.second = 1;
 
     if (Rand::rand(100) < critRate) {
-        ret.first *= 2; // critical hit
+        ret.first *= critPower; // critical hit
         ret.second = 2;
     }
 
@@ -95,10 +95,12 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     resp->iNPCCnt = pkt->iNPCCnt;
 
     int baseCrit = 5;
+    int critPower = 2;
 
     if (plr->weaponType == 1) {
-        if (plr->combos == 2) { // melee weapons get guaranteed crit on third strike
+        if (plr->combos == 3) { // melee weapons get guaranteed crit on third strike
             baseCrit = 100;
+            critPower = 3; // triple crit damage
             plr->combos = 0;
         } else {
             baseCrit = 0;
@@ -138,7 +140,7 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
             damage.first += Rand::rand(plr->boostDamage * boost);
         }
 
-        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], baseCrit, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
+        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], baseCrit, critPower, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
         damage.first *= penalty;
         damage.first = hitMob(sock, mob, damage.first);
 
@@ -168,7 +170,7 @@ void Combat::npcAttackPc(Mob *mob, time_t currTime) {
 
     INITVARPACKET(respbuf, sP_FE2CL_NPC_ATTACK_PCs, pkt, sAttackResult, atk);
 
-    auto damage = getDamage((int)mob->data["m_iPower"], plr->defense, 0, -1, -1);
+    auto damage = getDamage((int)mob->data["m_iPower"], plr->defense, 0, 1, -1, -1);
 
     if (!(plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE))
         plr->HP -= damage.first;
@@ -237,7 +239,7 @@ static void npcAttackNpcs(BaseNPC *npc, Mob *mob) {
     sP_FE2CL_CHARACTER_ATTACK_CHARACTERs *pkt = (sP_FE2CL_CHARACTER_ATTACK_CHARACTERs*)respbuf;
     sAttackResult *atk = (sAttackResult*)(respbuf + sizeof(sP_FE2CL_CHARACTER_ATTACK_CHARACTERs));
 
-    auto damage = getDamage(500, (int)mob->data["m_iProtection"], 0, -1, -1);
+    auto damage = getDamage(500, (int)mob->data["m_iProtection"], 0, 1, -1, -1);
     damage.first = hitMobNPC(mob, damage.first);
 
     pkt->eCT = 4;
@@ -509,7 +511,7 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
                 damage.first += Rand::rand(plr->boostDamage * boost);
             }
 
-            damage = getDamage(damage.first, target->defense, 5, -1, -1);
+            damage = getDamage(damage.first, target->defense, 5, 1, -1, -1);
 
             target->HP -= damage.first;
 
@@ -545,7 +547,7 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
                 damage.first += Rand::rand(plr->boostDamage * boost);
             }
 
-            damage = getDamage(damage.first, (int)mob->data["m_iProtection"], 5, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
+            damage = getDamage(damage.first, (int)mob->data["m_iProtection"], 5, 2, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
 
             damage.first = hitMob(sock, mob, damage.first);
 
@@ -774,7 +776,7 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
 
         damage.first = pkt->iTargetCnt > 1 ? bullet->groupDamage : bullet->pointDamage;
 
-        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], 0, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
+        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], 0, 1, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"]);
 
         // distance based damage boost for rockets
         if (bullet->bulletType != 1) {
