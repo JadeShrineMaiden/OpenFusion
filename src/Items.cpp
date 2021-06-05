@@ -802,6 +802,8 @@ void Items::setItemStats(Player* plr) {
     plr->defense = 16 + plr->level * 4;
     plr->boostCost = 0;
     plr->boostDamage = 0;
+    if (plr->lastShot > 500)
+        plr->lastShot -= 500;
 
     Item* itemStatsDat;
 
