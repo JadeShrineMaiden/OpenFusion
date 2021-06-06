@@ -458,6 +458,19 @@ static void fusionEchoStageThree(CNSocket *sock, BaseNPC *npc) {
     }
 }
 
+static void superMandarkSplit(CNSocket *sock, BaseNPC *npc) {
+    Mob *oldbody = (Mob*)npc;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    for (int i = 0; i < 5; i++) {
+        Mob *splits = (Mob*)NPCManager::summonNPC(oldbody->x, oldbody->y, oldbody->z, plr->instanceID, 3340);
+
+        splits->appearanceData.iAngle = oldbody->appearanceData.iAngle;
+        NPCManager::updateNPCPosition(splits->appearanceData.iNPC_ID, splits->spawnX + Rand::rand(-200, 200), splits->spawnY + Rand::rand(-200, 200), splits->spawnZ,
+            plr->instanceID, oldbody->appearanceData.iAngle);
+    }
+}
+
 std::vector<NPCEvent> NPCManager::NPCEvents = {
     NPCEvent(2466, ON_KILLED, lordFuseStageTwo),
     NPCEvent(2467, ON_KILLED, lordFuseStageThree),
@@ -466,6 +479,7 @@ std::vector<NPCEvent> NPCManager::NPCEvents = {
     NPCEvent(3180, ON_KILLED, fusionAlbedo),
     NPCEvent(3172, ON_KILLED, fusionEchoStageTwo),
     NPCEvent(3168, ON_KILLED, fusionEchoStageThree),
+    NPCEvent(3364, ON_KILLED, superMandarkSplit),
 };
 
 #pragma endregion NPCEvents
