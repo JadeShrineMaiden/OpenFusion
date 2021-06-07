@@ -175,6 +175,7 @@ private:
     int readBufferIndex = 0;
     bool activelyReading = false;
     bool alive = true;
+    int recvd = 0;
 
     ACTIVEKEY activeKey;
 

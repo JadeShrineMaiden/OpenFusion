@@ -42,9 +42,9 @@ int CNSocketEncryption::xorData(uint8_t* buffer, uint8_t* key, int size) {
 uint32_t CNSocketEncryption::validateSum(uint8_t* buffer, uint32_t type, int size) {
     int num = 0;
     int num2 = 0;
-    int num3 = iV >> 20; // 255
+    int num3 = iV >> 20;
 
-    for (int i = 0;/*iV & 0xF*/ i < size; i++) {
+    for (int i = 0; i < size; i++) {
         num += buffer[i];
         num -= num3 * (num / num3);
         num2 += num;
@@ -52,7 +52,6 @@ uint32_t CNSocketEncryption::validateSum(uint8_t* buffer, uint32_t type, int siz
     }
 
     int dataSum = ((num2 << ((iV >> 12) & 0xF)) | num) & (iV >> 16);
-    //std::cout << "Calculated sum: " << dataSum << std::endl;
     return type | (dataSum << 12);
 }
 #endif
@@ -204,13 +203,32 @@ void CNSocket::setActiveKey(ACTIVEKEY key) {
 }
 
 inline void CNSocket::parsePacket(uint8_t *buf, size_t size) {
-#ifdef RETRO
-    uint32_t type = *((uint32_t*)buf) & 0xFF000FFF;
-#else
     uint32_t type = *((uint32_t*)buf);
-#endif
     uint8_t *body = buf + 4;
     size_t pktSize = size - 4;
+
+#ifdef RETRO
+    uint32_t summed = CNSocketEncryption::validateSum((uint8_t*)body, type & 0xFF000FFF, (int) pktSize);
+
+    uint32_t clientSum = (type >> 12) & 0xFFF;
+    uint32_t serverSum = (summed >> 12) & 0xFFF;
+
+    bool valid = false;
+    for (int i = -3; i <= 0; i++) {
+        int toXor = (recvd + i) & 0xFFF;
+        if (clientSum == (serverSum ^ toXor)) {
+            valid = true;
+            break;
+        }
+    }
+    if (!valid && recvd > 10) {
+        std::cerr << "OpenFusion: REJECTED PACKET: " << (int)type << std::endl;
+        return;
+    }
+
+    recvd++;
+    type &= 0xFF000FFF;
+#endif
 
     if (Packets::packets.find(type) == Packets::packets.end()) {
         std::cerr << "OpenFusion: UNKNOWN PACKET: " << (int)type << std::endl;
