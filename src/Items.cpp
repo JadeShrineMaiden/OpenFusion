@@ -804,6 +804,8 @@ void Items::setItemStats(Player* plr) {
     plr->boostDamage = 0;
     if (plr->lastShot > 500)
         plr->lastShot -= 500;
+    if (!(plr->iPCState & 8))
+        plr->speed = 600;
 
     Item* itemStatsDat;
 

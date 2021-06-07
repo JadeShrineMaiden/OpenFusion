@@ -76,8 +76,11 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         if (penalty < 0) penalty = 0;
     }
 
-    if (plr->suspicionRating > 15000)
+    if (plr->suspicionRating > 15000) { // too much, drop the player
+        sock->kill();
+        CNShardServer::_killConnection(sock);
         return;
+    }
 
     /*
      * IMPORTANT: This validates memory safety in addition to preventing
@@ -628,8 +631,11 @@ static void grenadeFire(CNSocket* sock, CNPacketData* data) {
 
     plr->lastShot = currTime;
 
-    if (plr->suspicionRating > 15000)
+    if (plr->suspicionRating > 15000) {
+        sock->kill();
+        CNShardServer::_killConnection(sock);
         return;
+    }
 
     INITSTRUCT(sP_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC, resp);
     resp.iToX = grenade->iToX;

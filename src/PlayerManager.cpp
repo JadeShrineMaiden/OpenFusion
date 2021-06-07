@@ -493,6 +493,9 @@ static void enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
         response2.iState = plr->iPCState;
         sendToViewable(sock, response2, P_FE2CL_PC_STATE_CHANGE);
 
+        Items::Item* itemStatsDat = Items::getItemData(plr->Equip[8].iID, plr->Equip[8].iType);
+        plr->speed = itemStatsDat->speed;
+
     } else {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_FAIL, response);
         sock->sendPacket(response, P_FE2CL_PC_VEHICLE_ON_FAIL);
@@ -518,6 +521,8 @@ static void exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
         INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
         response2.iPC_ID = plr->iID;
         response2.iState = plr->iPCState;
+
+        plr->speed = 600;
 
         sendToViewable(sock, response2, P_FE2CL_PC_STATE_CHANGE);
     }

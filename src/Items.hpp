@@ -80,6 +80,7 @@ namespace Items {
         int pointDamage, groupDamage, fireRate, defense, gender;
         int weaponType;
         int boostCost, boostDamage;
+        int speed;
         // TODO: implement more as needed
     };
     struct DropRoll {

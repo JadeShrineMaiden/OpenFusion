@@ -61,6 +61,7 @@ struct Player : public Entity {
     int boostDamage = 0;
     int8_t weaponType = 0;
     int8_t combos = 0;
+    int speed = 600;
 
     int64_t aQuestFlag[16] = {};
     int tasks[ACTIVE_MISSION_COUNT] = {};

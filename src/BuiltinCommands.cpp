@@ -90,6 +90,9 @@ static void setValuePlayer(CNSocket* sock, CNPacketData* data) {
     case 5:
         plr->money = setData->iSetValue;
         break;
+    case 6:
+        plr->speed = setData->iSetValue;
+        break;
     }
 
     response.iPC_ID = setData->iPC_ID;

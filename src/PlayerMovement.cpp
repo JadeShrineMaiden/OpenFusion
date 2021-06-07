@@ -30,6 +30,18 @@ static void movePlayer(CNSocket* sock, CNPacketData* data) {
 
     PlayerManager::sendToViewable(sock, moveResponse, P_FE2CL_PC_MOVE);
 
+    int speedLimit = plr->speed;
+    if (plr->iConditionBitFlag & CSB_BIT_UP_MOVE_SPEED)
+        speedLimit += 250;
+
+    if (moveResponse.iSpeed > speedLimit) plr->suspicionRating += moveResponse.iSpeed - speedLimit + 500;
+
+    if (plr->suspicionRating > 15000) {
+        sock->kill();
+        CNShardServer::_killConnection(sock);
+        return;
+    }
+
     // [gruntwork] check if player has a follower and move it
     //if (TableData::RunningNPCPaths.find(plr->iID) != TableData::RunningNPCPaths.end()) {
     //    BaseNPC* follower = TableData::RunningNPCPaths[plr->iID].first;
