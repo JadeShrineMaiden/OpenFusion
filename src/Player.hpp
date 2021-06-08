@@ -63,6 +63,8 @@ struct Player : public Entity {
     int8_t combos = 0;
     int speed = 600;
 
+    time_t lastMovement = 0;
+
     int64_t aQuestFlag[16] = {};
     int tasks[ACTIVE_MISSION_COUNT] = {};
     int RemainingNPCCount[ACTIVE_MISSION_COUNT][3] = {};
@@ -89,7 +91,7 @@ struct Player : public Entity {
     uint64_t iFirstUseFlag[2] = {};
     time_t lastHeartbeat = 0;
 
-    int suspicionRating = 0;
+    int16_t suspicionRating[2] = {};
     time_t lastShot = 0;
     std::vector<sItemBase> buyback = {};
 

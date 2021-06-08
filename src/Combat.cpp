@@ -60,23 +60,30 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     // TODO: move this out of here, when generalizing packet frequency validation
     float penalty = 1.0f;
     time_t currTime = getTime();
+    int suspicion = plr->suspicionRating[1];
+
     if (currTime - plr->lastShot < plr->fireRate * 80)
-        plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
+        suspicion += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
     else { 
-        if (currTime - plr->lastShot < plr->fireRate * 180 && plr->suspicionRating > 0)
-            plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // lose suspicion for delayed firing
-        if (plr->suspicionRating > 5000) // lose suspicion in general when far in
-            plr->suspicionRating -= 100;
+        if (currTime - plr->lastShot < plr->fireRate * 180 && suspicion > 0)
+            suspicion += plr->fireRate * 100 + plr->lastShot - currTime; // lose suspicion for delayed firing
+        if (suspicion > 5000) // lose suspicion in general when far in
+            suspicion -= 100;
     }
 
     plr->lastShot = currTime;
 
-    if (plr->suspicionRating > 5000) {// penalize the player for possibly cheating
-        penalty -= (plr->suspicionRating - 5000) * 0.0002f;
+    if (suspicion > 0)
+        plr->suspicionRating[1] = suspicion;
+    else
+        plr->suspicionRating[1] = 0;
+
+    if (plr->suspicionRating[1] > 5000) {// penalize the player for possibly cheating
+        penalty -= (plr->suspicionRating[1] - 5000) * 0.0002f;
         if (penalty < 0) penalty = 0;
     }
 
-    if (plr->suspicionRating > 15000) { // too much, drop the player
+    if (plr->suspicionRating[1] > 15000) { // too much, drop the player
         sock->kill();
         CNShardServer::_killConnection(sock);
         return;
@@ -172,6 +179,11 @@ void Combat::npcAttackPc(Mob *mob, time_t currTime) {
     Player *plr = PlayerManager::getPlayer(mob->target);
 
     INITVARPACKET(respbuf, sP_FE2CL_NPC_ATTACK_PCs, pkt, sAttackResult, atk);
+
+    int plrDef = plr->defense;
+    if (plr->suspicionRating[0] > 5000)
+        plrDef = plr->defense - (plr->suspicionRating[1] - 5000);
+    if (plrDef < 1) plrDef = 1;
 
     auto damage = getDamage((int)mob->data["m_iPower"], plr->defense, 0, 1, -1, -1);
 
@@ -387,7 +399,7 @@ static void combatEnd(CNSocket *sock, CNPacketData *data) {
     plr->inCombat = false;
     plr->healCooldown = 5000;
     plr->combos = 0;
-    if (plr->suspicionRating > 5000) plr->suspicionRating -= (plr->suspicionRating - 5000) / 2;
+    if (plr->suspicionRating[1] > 5000) plr->suspicionRating[1] -= (plr->suspicionRating[1] - 5000) / 2;
 }
 
 static void dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
@@ -619,19 +631,25 @@ static void grenadeFire(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     time_t currTime = getTime();
+    int suspicion = plr->suspicionRating[1];
 
     if (currTime - plr->lastShot < plr->fireRate * 80)
-        plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
+        suspicion += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
     else { 
-        if (currTime - plr->lastShot < plr->fireRate * 180 && plr->suspicionRating > 0)
-            plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // lose suspicion for delayed firing
-        if (plr->suspicionRating > 5000) // lose suspicion in general when far in
-            plr->suspicionRating -= 100;
+        if (currTime - plr->lastShot < plr->fireRate * 180 && suspicion > 0)
+            suspicion += plr->fireRate * 100 + plr->lastShot - currTime; // lose suspicion for delayed firing
+        if (suspicion > 5000) // lose suspicion in general when far in
+            suspicion -= 100;
     }
 
     plr->lastShot = currTime;
 
-    if (plr->suspicionRating > 15000) {
+    if (suspicion > 0)
+        plr->suspicionRating[1] = suspicion;
+    else
+        plr->suspicionRating[1] = 0;
+
+    if (plr->suspicionRating[1] > 15000) {
         sock->kill();
         CNShardServer::_killConnection(sock);
         return;
@@ -666,19 +684,25 @@ static void rocketFire(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     time_t currTime = getTime();
+    int suspicion = plr->suspicionRating[1];
 
     if (currTime - plr->lastShot < plr->fireRate * 80)
-        plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
+        suspicion += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
     else { 
-        if (currTime - plr->lastShot < plr->fireRate * 180 && plr->suspicionRating > 0)
-            plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // lose suspicion for delayed firing
-        if (plr->suspicionRating > 5000) // lose suspicion in general when far in
-            plr->suspicionRating -= 100;
+        if (currTime - plr->lastShot < plr->fireRate * 180 && suspicion > 0)
+            suspicion += plr->fireRate * 100 + plr->lastShot - currTime; // lose suspicion for delayed firing
+        if (suspicion > 5000) // lose suspicion in general when far in
+            suspicion -= 100;
     }
 
     plr->lastShot = currTime;
 
-    if (plr->suspicionRating > 15000)
+    if (suspicion > 0)
+        plr->suspicionRating[1] = suspicion;
+    else
+        plr->suspicionRating[1] = 0;
+
+    if (plr->suspicionRating[1] > 15000)
         return;
 
     // We should be sending back rocket succ packet, but it doesn't work, and this one works
@@ -739,8 +763,8 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
 
     float penalty = 1.0f;
 
-    if (plr->suspicionRating > 5000) {// penalize the player for possibly cheating
-        penalty -= (plr->suspicionRating - 5000) * 0.0002f;
+    if (plr->suspicionRating[1] > 5000) {// penalize the player for possibly cheating
+        penalty -= (plr->suspicionRating[1] - 5000) * 0.0002f;
         if (penalty < 0) penalty = 0;
     }
 
