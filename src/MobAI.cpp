@@ -682,14 +682,16 @@ static void roamingStep(Mob *mob, time_t currTime) {
     int farX, farY;
 
     // pick a random destination
-    int instance = MAPNUM(mob->instanceID);
-    if (instance < 145 || instance > 150) {
+    if (mob->instanceID == 0) {
         farX = xStart + Rand::rand(mob->idleRange);
         farY = yStart + Rand::rand(mob->idleRange);
     } else {
-        // make mobs in the claustrophobic lairs move less
+        // make mobs in lairs and infected zones move around less
         farX = mob->spawnX - 250 + Rand::rand(250);
         farY = mob->spawnY - 250 + Rand::rand(250);
+        speed = hypot(mob->x - farX, mob->y - farY) - 1;
+        if (speed < 1)
+            speed = 1;
     }
 
     // halve movement speed if snared
