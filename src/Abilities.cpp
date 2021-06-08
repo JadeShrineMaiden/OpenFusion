@@ -291,7 +291,7 @@ bool doDamage(CNSocket *sock, sSkillResult_Damage *respdata, int i, int32_t targ
     Player *plr = PlayerManager::getPlayer(sock);
 
     int damage = 0;
-    if (mob->appearanceData.iNPCType != 3355 || mob->appearanceData.iNPCType != 151)
+    if (mob->appearanceData.iNPCType != 3355 && mob->appearanceData.iNPCType != 151)
         damage = Combat::hitMob(sock, mob, std::max(PC_MAXHEALTH(plr->level) * amount / 1000, mob->maxHealth * amount / 1000));
     else
         damage = Combat::hitMob(sock, mob, PC_MAXHEALTH(plr->level) * amount / 1000);

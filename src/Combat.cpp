@@ -369,9 +369,14 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
          * IMPORTANT: The check in TableData::loadPaths() must pass or else this will loop forever.
          */
         auto& queue = it->second;
-        for (auto point = queue.front(); point.x != mob->spawnX || point.y != mob->spawnY; point = queue.front()) {
+        int i = Rand::rand(250);
+        for (auto point = queue.front(); i > 0; point = queue.front()) {
             queue.pop();
             queue.push(point);
+            mob->spawnX = point.x;
+            mob->spawnY = point.y;
+            mob->spawnZ = point.z;
+            i -= 1;
         }
     } else {
         Transport::NPCQueues.erase(mob->appearanceData.iNPC_ID);
