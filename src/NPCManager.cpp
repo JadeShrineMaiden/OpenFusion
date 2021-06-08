@@ -298,19 +298,8 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
 
 static void npcWarpHandler(CNSocket* sock, CNPacketData* data) {
     auto warpNpc = (sP_CL2FE_REQ_PC_WARP_USE_NPC*)data->buf;
-    Player* plr = PlayerManager::getPlayer(sock);
 
-    Chunk* chnk = Chunking::chunks[plr->chunkPos];
-    for (const EntityRef& ref : chnk->entities) {
-        if (ref.type == EntityType::PLAYER)
-            continue;
-
-        if (ref.id != warpNpc->iNPC_ID)
-            continue;
-
-        handleWarp(sock, warpNpc->iWarpID);
-        break;
-    }
+    handleWarp(sock, warpNpc->iWarpID);
 }
 
 static void npcWarpTimeMachine(CNSocket* sock, CNPacketData* data) {
