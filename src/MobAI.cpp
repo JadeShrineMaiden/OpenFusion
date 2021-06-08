@@ -527,7 +527,10 @@ static void combatStep(Mob *mob, time_t currTime) {
     // drain
     if (mob->skillStyle < 0 && (mob->lastDrainTime == 0 || currTime - mob->lastDrainTime >= 1000)
         && mob->appearanceData.iConditionBitFlag & CSB_BIT_BOUNDINGBALL) {
-        drainMobHP(mob, mob->maxHealth / 20); // lose 5% every second
+        if (mob->appearanceData.iNPCType != 151)
+            drainMobHP(mob, mob->maxHealth / 20); // lose 5% every second
+        else
+            drainMobHP(mob, mob->maxHealth / 40);
         mob->lastDrainTime = currTime;
     }
 
