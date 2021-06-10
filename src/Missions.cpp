@@ -510,7 +510,8 @@ void Missions::updateFusionMatter(CNSocket* sock, int fusion) {
     plr->fusionmatter += fusion;
 
     // there's a much lower FM cap in the Future
-    int fmCap = AvatarGrowth[plr->level]["m_iFMLimit"];
+    int fmCap = AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"];
+    fmCap *= 1.5f;
     if (plr->fusionmatter > fmCap)
         plr->fusionmatter = fmCap;
     else if (plr->fusionmatter < 0) // if somehow lowered too far
