@@ -196,10 +196,6 @@ static void setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
     }
 
     sock->sendPacket(resp, P_FE2CL_REP_NANO_TUNE_SUCC);
-
-    DEBUGLOG(
-        std::cout << PlayerManager::getPlayerName(plr) << " set skill id " << skill->iTuneID << " for nano: " << skill->iNanoID << std::endl;
-    )
 }
 
 // 0=A 1=B 2=C -1=Not found
@@ -275,13 +271,7 @@ static void nanoUnEquipHandler(CNSocket* sock, CNPacketData* data) {
 
 static void nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
     auto pkt = (sP_CL2FE_REQ_NANO_ACTIVE*)data->buf;
-    Player *plr = PlayerManager::getPlayer(sock);
-
     summonNano(sock, pkt->iNanoSlotNum);
-
-    DEBUGLOG(
-        std::cout << PlayerManager::getPlayerName(plr) << " requested to summon nano slot: " << pkt->iNanoSlotNum << std::endl;
-    )
 }
 
 static void nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
@@ -289,10 +279,6 @@ static void nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
 
     int16_t nanoID = plr->activeNano;
     int16_t skillID = plr->Nanos[nanoID].iSkillID;
-
-    DEBUGLOG(
-        std::cout << PlayerManager::getPlayerName(plr) << " requested to summon nano skill " << std::endl;
-    )
 
     std::vector<int> targetData = findTargets(plr, skillID, data);
 
