@@ -310,6 +310,12 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     plr.SerialKey = enter->iEnterSerialKey;
     plr.instanceID = INSTANCE_OVERWORLD; // the player should never be in an instance on enter
 
+    plr.suspicionRating[0] = 0; // zero out anticheats
+    plr.suspicionRating[1] = 0;
+    time_t tm = getTime();
+    plr.lastMovement = tm;
+    plr.lastShot = tm;
+
     sock->setEKey(CNSocketEncryption::createNewKey(response.uiSvrTime, response.iID + 1, response.PCLoadData2CL.iFusionMatter + 1));
     sock->setFEKey(plr.FEKey);
     sock->setActiveKey(SOCKETKEY_FE); // send all packets using the FE key from now on
