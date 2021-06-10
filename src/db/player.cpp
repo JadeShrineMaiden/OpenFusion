@@ -149,11 +149,8 @@ void Database::getPlayer(Player* plr, int id) {
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         int slot = sqlite3_column_int(stmt, 0);
 
-        // for extra safety
-        if (slot < 0 || slot > AEQUIP_COUNT + AINVEN_COUNT + ABANK_COUNT) {
-            std::cout << "[WARN] Database: Invalid item slot in db?! " << std::endl;
+        if (slot < 0 || slot > AEQUIP_COUNT + AINVEN_COUNT + ABANK_COUNT)
             continue;
-        }
 
         sItemBase* item;
         if (slot < AEQUIP_COUNT) {
