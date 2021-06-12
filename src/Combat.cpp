@@ -85,7 +85,7 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
     if (plr->suspicionRating[1] > 15000) { // too much, drop the player
         sock->kill();
-        CNShardServer::_killConnection(sock);
+        //CNShardServer::_killConnection(sock);
         return;
     }
 

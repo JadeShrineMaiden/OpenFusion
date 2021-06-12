@@ -292,6 +292,7 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         if (TempBank.find(key) == TempBank.end()) {
             Bank *bank = new Bank();
             TempBank[key] = bank;
+            std::cout << "Getting bank for " << plr->iID << std::endl;
             Database::getBank(TempBank[key], plr->iID, plr->activeBank);
         }
 
@@ -324,6 +325,7 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         if (TempBank.find(key) == TempBank.end()) {
             Bank *bank = new Bank();
             TempBank[key] = bank;
+            std::cout << "Getting bank for " << plr->iID << std::endl;
             Database::getBank(TempBank[key], plr->iID, plr->activeBank);
         }
 
@@ -631,6 +633,7 @@ static void itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
     if (TempBank.find(key) == TempBank.end()) {
         Bank *bank = new Bank();
         TempBank[key] = bank;
+        std::cout << "Getting bank for " << plr->iID << std::endl;
         Database::getBank(TempBank[key], plr->iID, plr->activeBank);
     }
 

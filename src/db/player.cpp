@@ -639,5 +639,8 @@ void Database::getBank(Bank *bank, int id, int activeBank) {
         std::cout << "Loaded bank slot " << slot << " for playerid " << id << std::endl;
     }
 
+    std::cout << "SQL Finalizing address = " << &stmt << std::endl;
     sqlite3_finalize(stmt);
+    std::cout << "Got bank for " << id << std::endl;
+    stmt = nullptr;
 }
