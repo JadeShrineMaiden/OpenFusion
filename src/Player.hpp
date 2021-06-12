@@ -63,7 +63,7 @@ struct Player : public Entity {
     int8_t combos = 0;
     int speed = 600;
 
-    time_t lastMovement = 0;
+    int16_t movements = 0;
 
     int64_t aQuestFlag[16] = {};
     int tasks[ACTIVE_MISSION_COUNT] = {};

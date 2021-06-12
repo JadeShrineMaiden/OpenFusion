@@ -312,9 +312,7 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     plr.suspicionRating[0] = 0; // zero out anticheats
     plr.suspicionRating[1] = 0;
-    time_t tm = getTime();
-    plr.lastMovement = tm;
-    plr.lastShot = tm;
+    plr.lastShot = getTime();
 
     sock->setEKey(CNSocketEncryption::createNewKey(response.uiSvrTime, response.iID + 1, response.PCLoadData2CL.iFusionMatter + 1));
     sock->setFEKey(plr.FEKey);
