@@ -81,6 +81,7 @@ void CNShardServer::_killConnection(CNSocket* cns) {
         return;
 
     Player* plr = PlayerManager::getPlayer(cns);
+    std::cout << "Removing player: " << plr->iID << std::endl;
 
     int64_t key = plr->SerialKey;
 

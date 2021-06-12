@@ -115,19 +115,10 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
 
     // check regex
     if (!CNLoginServer::isLoginDataGood(userLogin, userPassword)) {
-        // send a custom error message
-        INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
-        std::string text = "Invalid login or password\n";
-        text += "Login has to be 4 - 32 characters long and can't contain special characters other than dash and underscore\n";
-        text += "Password has to be 8 - 32 characters long";          
-        U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
-        msg.iDuringTime = 15;
-        sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
-
         // we still have to send login fail to prevent softlock
         return loginFail(LoginError::LOGIN_ERROR, userLogin, sock);
     }
-        
+
 
     Database::Account findUser = {};
     Database::findAccount(&findUser, userLogin);

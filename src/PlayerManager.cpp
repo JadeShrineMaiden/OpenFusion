@@ -216,6 +216,51 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     if (isAccountInUse(plr.accountId)) {
         // kick the other player
         exitDuplicate(plr.accountId);
+
+        // duplicate players make this complicated
+        Player plr2 = {};
+        Database::getPlayer(&plr2, plr.iID);
+
+        plr.iID = plr2.iID;
+        plr.HP = plr2.HP;
+        plr.level = plr2.level;
+        plr.money = plr2.money;
+        plr.fusionmatter = plr2.fusionmatter;
+        plr.mentor = plr2.mentor;
+        plr.x = plr2.x;
+        plr.y = plr2.y;
+        plr.z = plr2.z;
+        plr.angle = plr2.angle;
+        plr.batteryN = plr2.batteryN;
+        plr.batteryW = plr2.batteryW;
+
+        plr.iWarpLocationFlag = plr2.iWarpLocationFlag;
+        plr.aSkywayLocationFlag[0] = plr2.aSkywayLocationFlag[0];
+        plr.aSkywayLocationFlag[1] = plr2.aSkywayLocationFlag[1];
+
+        for (int i = 0; i < AEQUIP_COUNT; i++)
+            plr.Equip[i] = plr2.Equip[i];
+        for (int i = 0; i < AINVEN_COUNT; i++)
+            plr.Inven[i] = plr2.Inven[i];
+        // quest inventory
+        for (int i = 0; i < AQINVEN_COUNT; i++)
+            plr.QInven[i] = plr2.QInven[i];
+        // nanos
+        for (int i = 1; i < SIZEOF_NANO_BANK_SLOT; i++) {
+            plr.Nanos[i] = plr2.Nanos[i];
+            //response.PCLoadData2CL.aNanoBank[i] = plr.Nanos[i] = {0};
+        }
+        for (int i = 0; i < 3; i++) {
+            plr.equippedNanos[i] = plr2.equippedNanos[i];
+        }
+        // missions in progress
+        for (int i = 0; i < ACTIVE_MISSION_COUNT; i++)
+            plr.tasks[i] = plr2.tasks[i];
+
+        for (int i = 0; i < 16; i++) {
+            plr.aQuestFlag[i] = plr2.aQuestFlag[i];
+        }
+
     }
 
     response.iID = plr.iID;

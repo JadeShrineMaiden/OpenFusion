@@ -488,6 +488,7 @@ void Database::updatePlayer(Player *player, std::map<std::pair<int32_t, int32_t>
                 std::cout << "Saved bank slot " << (i + AEQUIP_COUNT + AINVEN_COUNT + it->first.second * 200) << " for playerid " << player->iID << std::endl;
             }
 
+            std::cout << "Iteration is: " << it->first.first << " and " << it->first.second << std::endl;
             it = banks->erase(it);
         } else {
             it++;
