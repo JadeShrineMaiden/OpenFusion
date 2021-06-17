@@ -234,13 +234,13 @@ static bool endTask(CNSocket *sock, int32_t taskNum, int choice=0) {
     }
 
     if (!found) {
-       std::cout << "[WARN] Player tried to end task that isn't in journal?" << std::endl;
-       return false;
+       std::cout << "[WARN] Player tried to end task that isn't in journal? ID: " << taskNum << std::endl;
+       //return false;
     }
 
     if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
         std::cout << "[WARN] Player completed non-active mission!?" << std::endl;
-        return false;
+        //return false;
     }
 
     // mission rewards
@@ -423,6 +423,8 @@ static void taskEnd(CNSocket* sock, CNPacketData* data) {
     if (!endTask(sock, missionData->iTaskNum, missionData->iBox1Choice)) {
         return;
     }
+
+    std::cout << "Ending task: " << missionData->iTaskNum << std::endl;
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_END_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_END_SUCC));
 }
