@@ -614,12 +614,11 @@ void Missions::mobKilled(CNSocket *sock, int mobid, int rolledQItem) {
                     if (drop) {
                         // XXX: are CSUItemID and CSTItemID the same?
                         dropQuestItem(sock, plr->tasks[i], 1, task["m_iCSUItemID"][j], mobid);
+                        rolledQItem = 100; // client hates getting more than 1 drop
                     } else {
                         // fail to drop (itemID == 0)
-                        dropQuestItem(sock, plr->tasks[i], 1, 0, mobid);
+                        dropQuestItem(sock, plr->tasks[i], 0, task["m_iCSUItemID"][j], mobid);
                     }
-                } else // 0 count drop just to carry the mission
-                    dropQuestItem(sock, plr->tasks[i], 0, task["m_iCSUItemID"][j], mobid);
             }
         }
     }
