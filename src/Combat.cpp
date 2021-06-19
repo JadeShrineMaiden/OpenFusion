@@ -72,6 +72,7 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     }
 
     plr->lastShot = currTime;
+    plr->lastActivity = currTime;
 
     if (suspicion > 0)
         plr->suspicionRating[1] = suspicion;
@@ -336,6 +337,9 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
                     continue;
 
                 Player *otherPlr = PlayerManager::getPlayer(sockTo);
+
+                if (mob->killedTime - otherPlr->lastActivity > 30000) // 30 seconds inactive, no drops for you.
+                    continue;
 
                 // only contribute to group members' kills if they're close enough
                 int dist = std::hypot(plr->x - otherPlr->x + 1, plr->y - otherPlr->y + 1);
@@ -648,6 +652,7 @@ static void grenadeFire(CNSocket* sock, CNPacketData* data) {
     }
 
     plr->lastShot = currTime;
+    plr->lastActivity = currTime;
 
     if (suspicion > 0)
         plr->suspicionRating[1] = suspicion;
@@ -701,6 +706,7 @@ static void rocketFire(CNSocket* sock, CNPacketData* data) {
     }
 
     plr->lastShot = currTime;
+    plr->lastActivity = currTime;
 
     if (suspicion > 0)
         plr->suspicionRating[1] = suspicion;

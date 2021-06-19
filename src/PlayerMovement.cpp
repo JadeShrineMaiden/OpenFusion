@@ -51,6 +51,7 @@ static void movePlayer(CNSocket* sock, CNPacketData* data) {
     }
 
     plr->movements += 1;
+    plr->lastActivity = tm;
 
     // [gruntwork] check if player has a follower and move it
     //if (TableData::RunningNPCPaths.find(plr->iID) != TableData::RunningNPCPaths.end()) {
