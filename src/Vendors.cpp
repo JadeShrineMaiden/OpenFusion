@@ -21,6 +21,38 @@ static void vendorBuy(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
+    if (NPCManager::NPCs.find(req->iNPC_ID) == NPCManager::NPCs.end()) {
+        std::cout << "[WARN] Vendor NPC not found" << std::endl;
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL);
+        return;
+    }
+
+    BaseNPC* npc = NPCManager::NPCs[req->iNPC_ID];
+    int vendor = npc->appearanceData.iNPCType;
+
+    if (Vendors::VendorTables.find(vendor) == Vendors::VendorTables.end()) {
+        std::cout << "[WARN] Player trying to buy from non-existent vendor." << std::endl;
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL);
+        return;
+    }
+
+    bool failed = true;
+    std::vector<VendorListing> listings = Vendors::VendorTables[vendor];
+
+    for (int i = 0; i < (int)listings.size() && i < 20; i++) { // 20 is the max
+        if (listings[i].iID == 0)
+            continue;
+
+        if (req->Item.iID == listings[i].iID && req->Item.iType == listings[i].type)
+            failed = false;
+    }
+
+    if (failed) {
+        std::cout << "[WARN] Player trying to buy an unsold item. PlayerID: " << plr->iID << std::endl;
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL);
+        return;
+    }
+
     int itemCost = itemDat->buyPrice * (itemDat->stackSize > 1 ? req->Item.iOpt : 1);
     int slot = Items::findFreeSlot(plr);
     if (itemCost > plr->money || slot == -1) {
@@ -213,17 +245,17 @@ static void vendorTable(CNSocket* sock, CNPacketData* data) {
 
     int n = 0;
     for (int i = 0; i < (int)listings.size() && i < 20; i++) { // 20 is the max
-        if (listings[n].iID == 0)
+        if (listings[i].iID == 0)
             continue;
         sItemBase base;
-        base.iID = listings[n].iID;
+        base.iID = listings[i].iID;
         base.iOpt = 0;
         base.iTimeLimit = 0;
-        base.iType = listings[n].type;
+        base.iType = listings[i].type;
 
         sItemVendor vItem;
         vItem.item = base;
-        vItem.iSortNum = listings[n].sort;
+        vItem.iSortNum = listings[i].sort;
         vItem.iVendorID = req->iVendorID;
         //vItem.fBuyCost = listings[n].price; // this value is not actually the one that is used
 

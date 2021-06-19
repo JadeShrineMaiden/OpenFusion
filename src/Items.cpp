@@ -345,7 +345,13 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     }
 
     // if equipping an item, validate that it's of the correct type for the slot
+    // also check for levels
     if ((SlotType)itemmove->eTo == SlotType::EQUIP) {
+        Items::Item* itemDat = Items::getItemData(fromItem->iID, fromItem->iType);
+        if (itemDat == nullptr)
+            return;
+        if (itemDat->level > plr->level)
+            return;
         if (fromItem->iType == 10 && itemmove->iToSlotNum != 8)
             return; // vehicle in wrong slot
         else if (fromItem->iType != 10
