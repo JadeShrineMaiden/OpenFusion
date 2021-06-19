@@ -33,6 +33,17 @@ static bool isMissionCompleted(Player* player, int missionId) {
    return player->aQuestFlag[row] & (1ULL << column);
 }
 
+static bool isMissionTaken(Player* player, int missionId) {
+    for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+        if (player->tasks[i] != 0) {
+            TaskData& task = *Tasks[player->tasks[i]];
+            if ((int)(task["m_iHMissionID"]) == missionId)
+                return true;
+        }
+    }
+    return false;
+}
+
 int Missions::findQSlot(Player *plr, int id) {
     int i;
 
@@ -235,12 +246,12 @@ static bool endTask(CNSocket *sock, int32_t taskNum, int choice=0) {
 
     if (!found) {
        std::cout << "[WARN] Player tried to end task that isn't in journal? ID: " << taskNum << std::endl;
-       //return false;
+       return false;
     }
 
     if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
         std::cout << "[WARN] Player completed non-active mission!?" << std::endl;
-        //return false;
+        return false;
     }
 
     // mission rewards
@@ -290,6 +301,11 @@ bool Missions::startTask(Player* plr, int TaskID) {
     }
 
     TaskData& task = *Missions::Tasks[TaskID];
+
+    if (isMissionTaken(plr, (int)(task["m_iHMissionID"]))) {
+       std::cout << "[WARN] Player tried to start an already started mission" << std::endl;
+       return false;
+    }
 
     if (task["m_iCTRReqLvMin"] > plr->level) {
        std::cout << "[WARN] Player tried to start a task below their level" << std::endl;
@@ -592,15 +608,18 @@ void Missions::mobKilled(CNSocket *sock, int mobid, int rolledQItem) {
                 }
             }
             // drop quest item
-            if (task["m_iCSUItemNumNeeded"][j] != 0 && !isQuestItemFull(sock, task["m_iCSUItemID"][j], task["m_iCSUItemNumNeeded"][j]) ) {
-                bool drop = rolledQItem % 100 < task["m_iSTItemDropRate"][j];
-                if (drop) {
-                    // XXX: are CSUItemID and CSTItemID the same?
-                    dropQuestItem(sock, plr->tasks[i], 1, task["m_iCSUItemID"][j], mobid);
-                } else {
-                    // fail to drop (itemID == 0)
-                    dropQuestItem(sock, plr->tasks[i], 1, 0, mobid);
-                }
+            if (task["m_iCSUItemNumNeeded"][j] != 0) { 
+                if (!isQuestItemFull(sock, task["m_iCSUItemID"][j], task["m_iCSUItemNumNeeded"][j])) {
+                    bool drop = rolledQItem % 100 < task["m_iSTItemDropRate"][j];
+                    if (drop) {
+                        // XXX: are CSUItemID and CSTItemID the same?
+                        dropQuestItem(sock, plr->tasks[i], 1, task["m_iCSUItemID"][j], mobid);
+                    } else {
+                        // fail to drop (itemID == 0)
+                        dropQuestItem(sock, plr->tasks[i], 1, 0, mobid);
+                    }
+                } else // 0 count drop just to carry the mission
+                    dropQuestItem(sock, plr->tasks[i], 0, task["m_iCSUItemID"][j], mobid);
             }
         }
     }
