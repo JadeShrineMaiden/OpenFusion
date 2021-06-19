@@ -15,7 +15,7 @@ static void vendorBuy(CNSocket* sock, CNPacketData* data) {
 
     Items::Item* itemDat = Items::getItemData(req->Item.iID, req->Item.iType);
 
-    if (itemDat == nullptr) {
+    if (req->Item.iID == 0 || itemDat == nullptr) {
         std::cout << "[WARN] Item id " << req->Item.iID << " with type " << req->Item.iType << " not found (buy)" << std::endl;
         sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL);
         return;
@@ -211,20 +211,24 @@ static void vendorTable(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, resp);
 
+    int n = 0;
     for (int i = 0; i < (int)listings.size() && i < 20; i++) { // 20 is the max
+        if (listings[n].iID == 0)
+            continue;
         sItemBase base;
-        base.iID = listings[i].iID;
+        base.iID = listings[n].iID;
         base.iOpt = 0;
         base.iTimeLimit = 0;
-        base.iType = listings[i].type;
+        base.iType = listings[n].type;
 
         sItemVendor vItem;
         vItem.item = base;
-        vItem.iSortNum = listings[i].sort;
+        vItem.iSortNum = listings[n].sort;
         vItem.iVendorID = req->iVendorID;
-        //vItem.fBuyCost = listings[i].price; // this value is not actually the one that is used
+        //vItem.fBuyCost = listings[n].price; // this value is not actually the one that is used
 
-        resp.item[i] = vItem;
+        resp.item[n] = vItem;
+        n++;
     }
 
     sock->sendPacket(resp, P_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC);
