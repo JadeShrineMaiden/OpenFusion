@@ -230,6 +230,7 @@ static bool endTask(CNSocket *sock, int32_t taskNum, int choice=0) {
 
     // ugly pointer/reference juggling for the sake of operator overloading...
     TaskData& task = *Tasks[taskNum];
+    std::cout << "Player " << plr->iID << " tasks: " << plr->tasks[0] << ", " << plr->tasks[1] << ", "  << plr->tasks[2] << ", "  << plr->tasks[3] << ", "  << plr->tasks[4] << ", "  << plr->tasks[5] << std::endl;
 
     // update player
     int i;
@@ -379,6 +380,7 @@ void Missions::taskStart(CNSocket* sock, int taskNum) {
     if (task["m_iRequireInstanceID"] != 0 && task["m_iRequireInstanceID"] != MAPNUM(plr->instanceID)) {
         int failTaskID = task["m_iFOutgoingTask"];
         if (failTaskID != 0) {
+            std::cout << "Player is out of the instance of: " << taskNum << std::endl;
             Missions::quitTask(sock, taskNum, false);
         }
     }
@@ -614,11 +616,14 @@ void Missions::mobKilled(CNSocket *sock, int mobid, int rolledQItem) {
                     if (drop) {
                         // XXX: are CSUItemID and CSTItemID the same?
                         dropQuestItem(sock, plr->tasks[i], 1, task["m_iCSUItemID"][j], mobid);
-                        rolledQItem = 100; // client hates getting more than 1 drop
+                        rolledQItem = 99; // client hates getting more than 1 drop
                     } else {
                         // fail to drop (itemID == 0)
-                        dropQuestItem(sock, plr->tasks[i], 0, task["m_iCSUItemID"][j], mobid);
+                        dropQuestItem(sock, plr->tasks[i], 1, 0, mobid);
                     }
+                } else {
+                    dropQuestItem(sock, plr->tasks[i], 0, task["m_iCSUItemID"][j], mobid);
+                }
             }
         }
     }
@@ -646,6 +651,7 @@ void Missions::failInstancedMissions(CNSocket* sock) {
         if (task->task["m_iRequireInstanceID"] != 0 && task->task["m_iRequireInstanceID"] != MAPNUM(plr->instanceID)) { // mission is instanced
             int failTaskID = task->task["m_iFOutgoingTask"];
             if (failTaskID != 0) {
+                std::cout << "Player is out of the instance of: " << taskNum << std::endl;
                 Missions::quitTask(sock, taskNum, false);
                 //plr->tasks[i] = failTaskID; // this causes the client to freak out and send a dupe task
             }
