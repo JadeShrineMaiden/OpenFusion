@@ -76,7 +76,7 @@ void Nanos::nanoUnbuff(CNSocket* sock, std::vector<int> targetData, int32_t bitF
         plr->iGroupConditionBitFlag &= ~bitFlag;
         Player *leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
         if (leader != nullptr)
-            groupFlags = Groups::getGroupFlags(leader);
+            groupFlags = 0;//Groups::getGroupFlags(leader);
     }
 
     for (int i = 0; i < targetData[0]; i++) {

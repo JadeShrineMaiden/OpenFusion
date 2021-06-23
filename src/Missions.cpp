@@ -515,7 +515,7 @@ void Missions::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
 
         if (plr->groupNPC != 0 && NPCManager::NPCs.find(plr->groupNPC) != NPCManager::NPCs.end()) {
             BaseNPC* npc = NPCManager::NPCs[plr->groupNPC];
-            Groups::kickNpcGroup(sock, npc);
+            Groups::kickNPCFromGroup(sock, npc);
         }
     }
 

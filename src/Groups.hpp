@@ -8,11 +8,12 @@
 #include <list>
 
 namespace Groups {
-	void init();
+    void init();
 
-    void sendToGroup(Player* plr, void* buf, uint32_t type, size_t size);
+    void sendPacketToGroup(CNSocket* sock, void* buf, uint32_t type, size_t size);
+    bool addPlayerToGroup(Player* leadPlr, Player* plr);
+    bool kickPlayerFromGroup(Player* plr);
     void groupTickInfo(Player* plr);
-    void groupKickPlayer(Player* plr);
-    int getGroupFlags(Player* plr);
-    void kickNpcGroup(CNSocket* sock, BaseNPC* npc);
+    void addNPCToGroup(CNSocket* sock, BaseNPC* npc, int taskNum);
+    void kickNPCFromGroup(CNSocket* sock, BaseNPC* npc);
 }

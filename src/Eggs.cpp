@@ -18,7 +18,7 @@ int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
-    int bitFlag = Groups::getGroupFlags(otherPlr);
+    int bitFlag = 0; //Groups::getGroupFlags(otherPlr);
     int CBFlag = Nanos::applyBuff(sock, skillId, 1, 3, bitFlag);
 
     size_t resplen; 
@@ -99,7 +99,7 @@ static void eggStep(CNServer* serv, time_t currTime) {
             Player* plr = PlayerManager::getPlayer(sock);
             Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
-            int groupFlags = Groups::getGroupFlags(otherPlr);
+            int groupFlags = 0;//Groups::getGroupFlags(otherPlr);
             for (auto& pwr : Nanos::NanoPowers) {
                 if (pwr.bitFlag == CBFlag) { // pick the power with the right flag and unbuff
                     INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp);

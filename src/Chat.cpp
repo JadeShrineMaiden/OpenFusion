@@ -235,10 +235,6 @@ static void tradeChatHandler(CNSocket* sock, CNPacketData* data) {
 static void groupChatHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
-    Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
-
-    if (otherPlr == nullptr)
-        return;
 
     std::string fullChat = sanitizeText(AUTOU16TOU8(chat->szFreeChat));
 
@@ -261,16 +257,12 @@ static void groupChatHandler(CNSocket* sock, CNPacketData* data) {
     resp.iSendPCID = plr->iID;
     resp.iEmoteCode = chat->iEmoteCode;
 
-    Groups::sendToGroup(otherPlr, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC));
+    Groups::sendPacketToGroup(sock, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC));
 }
 
 static void groupMenuChatHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
-    Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
-
-    if (otherPlr == nullptr)
-        return;
 
     std::string fullChat = sanitizeText(AUTOU16TOU8(chat->szFreeChat));
     std::string logLine = "[GroupMenuChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
@@ -285,7 +277,7 @@ static void groupMenuChatHandler(CNSocket* sock, CNPacketData* data) {
     resp.iSendPCID = plr->iID;
     resp.iEmoteCode = chat->iEmoteCode;
 
-    Groups::sendToGroup(otherPlr, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC));
+    Groups::sendPacketToGroup(sock, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC));
 }
 
 // we only allow plain ascii, at least for now
