@@ -505,17 +505,14 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
     resp2.PCRegenDataForOtherPC.iHP = plr->HP;
     resp2.PCRegenDataForOtherPC.iAngle = plr->angle;
 
-    Player *otherPlr = getPlayerFromID(plr->iIDGroup);
-    if (otherPlr != nullptr) {
-        int bitFlag = 0;//Groups::getGroupFlags(otherPlr);
-        resp2.PCRegenDataForOtherPC.iConditionBitFlag = plr->iConditionBitFlag = plr->iSelfConditionBitFlag | bitFlag;
+    int bitFlag = Groups::getGroupFlags(plr);
+    resp2.PCRegenDataForOtherPC.iConditionBitFlag = plr->iConditionBitFlag = plr->iSelfConditionBitFlag | bitFlag;
 
-        resp2.PCRegenDataForOtherPC.iPCState = plr->iPCState;
-        resp2.PCRegenDataForOtherPC.iSpecialState = plr->iSpecialState;
-        resp2.PCRegenDataForOtherPC.Nano = plr->Nanos[plr->activeNano];
+    resp2.PCRegenDataForOtherPC.iPCState = plr->iPCState;
+    resp2.PCRegenDataForOtherPC.iSpecialState = plr->iSpecialState;
+    resp2.PCRegenDataForOtherPC.Nano = plr->Nanos[plr->activeNano];
 
-        sendToViewable(sock, resp2, P_FE2CL_PC_REGEN);
-    }
+    sendToViewable(sock, resp2, P_FE2CL_PC_REGEN);
 
     if (!move)
         return;

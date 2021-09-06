@@ -96,6 +96,26 @@ enum {
     ECSTB__END = 26,
 };
 
+// buffs
+enum {
+    eTBU_None = 0,
+    eTBU_Add = 1,
+    eTBU_Del = 2,
+    eTBU_Change = 3,
+    eTBU__End = 4,
+
+    eTBT_None = 0,
+    eTBT_Nano = 1,
+    eTBT_GroupNano = 2,
+    eTBT_Shiny = 3,
+    eTBT_LandEffect = 4,
+    eTBT_Item = 5,
+    eTBT_CashItem = 6,
+    eTBT__End = 7,
+    eTBT_Skill = 1,
+    eTBT_GroupSkill = 2,
+};
+
 enum {
     SUCC = 1,
     FAIL = 0,

@@ -74,9 +74,7 @@ void Nanos::nanoUnbuff(CNSocket* sock, std::vector<int> targetData, int32_t bitF
 
     if (groupPower) {
         plr->iGroupConditionBitFlag &= ~bitFlag;
-        Player *leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
-        if (leader != nullptr)
-            groupFlags = 0;//Groups::getGroupFlags(leader);
+        groupFlags = Groups::getGroupFlags(plr);
     }
 
     for (int i = 0; i < targetData[0]; i++) {
@@ -99,6 +97,22 @@ void Nanos::nanoUnbuff(CNSocket* sock, std::vector<int> targetData, int32_t bitF
             sockTo->sendPacket((void*)&resp, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
         }
     }
+}
+
+int32_t Nanos::getGroupPowerFlag(Player* plr) {
+    if (plr->activeNano == 0)
+        return 0;
+
+    int skillID = plr->Nanos[plr->activeNano].iSkillID;
+
+    if (SkillTable[skillID].targetType != 3 || SkillTable[skillID].effectArea != 0)
+        return 0;
+
+    for (auto& pwr : NanoPowers)
+        if (pwr.skillType == Nanos::SkillTable[skillID].skillType)
+            return pwr.bitFlag;
+
+    return 0;
 }
 
 int Nanos::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags) {

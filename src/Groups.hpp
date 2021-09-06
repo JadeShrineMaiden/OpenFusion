@@ -10,6 +10,7 @@
 namespace Groups {
     void init();
 
+    int32_t getGroupFlags(Player* plr);
     void sendPacketToGroup(CNSocket* sock, void* buf, uint32_t type, size_t size);
     bool addPlayerToGroup(Player* leadPlr, Player* plr);
     bool kickPlayerFromGroup(Player* plr);

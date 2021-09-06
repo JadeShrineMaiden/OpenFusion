@@ -28,6 +28,32 @@ static Player* getGroupLeader(CNSocket* sock) {
     return PlayerManager::getPlayerFromID(plr->iIDGroup);
 }
 
+static int32_t getGroupFlagsFromLeader(Player* plr) {
+    int32_t bitFlag = 0;
+
+    for (int i = 0; i < plr->groupCnt; i++) {
+        Player* otherPlr = PlayerManager::getPlayerFromID(plr->groupIDs[i]);
+
+        if (otherPlr == nullptr)
+            continue;
+
+        bitFlag |= Nanos::getGroupPowerFlag(otherPlr);
+    }
+
+    return bitFlag;
+}
+
+int32_t Groups::getGroupFlags(Player* plr) {
+    Player* leadPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
+
+    if (leadPlr == nullptr) {
+        std::cout << "[WARN] Group leader is null\n";
+        return 0;
+    }
+
+    return getGroupFlagsFromLeader(leadPlr);
+}
+
 void Groups::sendPacketToGroup(CNSocket* sock, void* buf, uint32_t type, size_t size) {
     Player* plr = getGroupLeader(sock);
 
@@ -156,6 +182,8 @@ bool Groups::addPlayerToGroup(Player* leadPlr, Player* plr) {
 
     craftGroupMemberData(leadPlr, respdata);
 
+    int bitFlag = getGroupFlagsFromLeader(leadPlr);
+
     for (int i = 0; i < leadPlr->groupCnt; i++) {
         resp->iMemberNPCCnt = 0;
         CNSocket* sock = PlayerManager::getSockFromID(leadPlr->groupIDs[i]);
@@ -183,6 +211,16 @@ bool Groups::addPlayerToGroup(Player* leadPlr, Player* plr) {
         }
 
         sock->sendPacket((void*)&respbuf, P_FE2CL_PC_GROUP_JOIN, resplen);
+
+        if (varPlr != plr) { // apply the new member's buffs to the group and the group's buffs to the new member
+            if (Nanos::SkillTable[varPlr->Nanos[varPlr->activeNano].iSkillID].targetType == 3) {
+                CNSocket* sock2 = PlayerManager::getSockFromID(plr->iID);
+                Nanos::applyBuff(sock2, varPlr->Nanos[varPlr->activeNano].iSkillID, 1, 1, bitFlag);
+            }
+
+            if (Nanos::SkillTable[plr->Nanos[plr->activeNano].iSkillID].targetType == 3)
+                Nanos::applyBuff(sock, plr->Nanos[plr->activeNano].iSkillID, 1, 1, bitFlag);
+        }
     }
 
     return true;
@@ -269,6 +307,8 @@ bool Groups::kickPlayerFromGroup(Player* plr) {
 
     craftGroupMemberData(leadPlr, respdata);
 
+    int bitFlag = getGroupFlagsFromLeader(leadPlr);
+
     for (int i = 0; i < leadPlr->groupCnt; i++) {
         resp->iMemberNPCCnt = 0;
         CNSocket* sock = PlayerManager::getSockFromID(leadPlr->groupIDs[i]);
@@ -294,6 +334,15 @@ bool Groups::kickPlayerFromGroup(Player* plr) {
             sock->sendPacket((void*)&respbuf, P_FE2CL_PC_GROUP_LEAVE, resplen + sizeof(sNPCGroupMemberInfo));
             continue;
         }
+
+        // remove the leaving member's buffs from the group and remove the group buffs from the leaving member.
+        if (Nanos::SkillTable[varPlr->Nanos[varPlr->activeNano].iSkillID].targetType == 3) {
+            CNSocket* sock2 = PlayerManager::getSockFromID(plr->iID);
+            Nanos::applyBuff(sock2, varPlr->Nanos[varPlr->activeNano].iSkillID, 2, 1, 0);
+        }
+
+        if (Nanos::SkillTable[plr->Nanos[varPlr->activeNano].iSkillID].targetType == 3)
+            Nanos::applyBuff(sock, plr->Nanos[plr->activeNano].iSkillID, 2, 1, bitFlag);
 
         sock->sendPacket((void*)&respbuf, P_FE2CL_PC_GROUP_LEAVE, resplen);
     }

@@ -16,9 +16,8 @@ std::unordered_map<int, EggType> Eggs::EggTypes;
 
 int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
     Player* plr = PlayerManager::getPlayer(sock);
-    Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
-    int bitFlag = 0; //Groups::getGroupFlags(otherPlr);
+    int bitFlag = Groups::getGroupFlags(plr);
     int CBFlag = Nanos::applyBuff(sock, skillId, 1, 3, bitFlag);
 
     size_t resplen; 
@@ -97,9 +96,8 @@ static void eggStep(CNServer* serv, time_t currTime) {
             CNSocket* sock = it->first.first;
             int32_t CBFlag = it->first.second;
             Player* plr = PlayerManager::getPlayer(sock);
-            Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
-            int groupFlags = 0;//Groups::getGroupFlags(otherPlr);
+            int groupFlags = Groups::getGroupFlags(plr);
             for (auto& pwr : Nanos::NanoPowers) {
                 if (pwr.bitFlag == CBFlag) { // pick the power with the right flag and unbuff
                     INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp);
