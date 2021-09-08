@@ -295,6 +295,37 @@ static void stepNPCPathing() {
             break;
         case EntityType::MOB:
             MobAI::incNextMovement((Mob*)npc);
+
+            if (((Mob*)npc)->groupLeader != 0 && ((Mob*)npc)->groupLeader == ((Mob*)npc)->appearanceData.iNPC_ID) {
+                // make followers follow this npc.
+                for (int i = 0; i < 4; i++) {
+                    if (((Mob*)npc)->groupMember[i] == 0)
+                        break;
+
+                    if (NPCManager::NPCs.find(((Mob*)npc)->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[((Mob*)npc)->groupMember[i]]->type != EntityType::MOB) {
+                        std::cout << "[WARN] leader can't find a group member!" << std::endl;
+                        continue;
+                    }
+
+                    Mob* followerMob = (Mob*)NPCManager::NPCs[((Mob*)npc)->groupMember[i]];
+
+                    if (followerMob->state != MobState::ROAMING)
+                        continue;
+
+                    NPCManager::updateNPCPosition(followerMob->appearanceData.iNPC_ID, point.x + followerMob->offsetX, point.y + followerMob->offsetY, point.z, followerMob->instanceID, followerMob->appearanceData.iAngle);
+
+                    INITSTRUCT(sP_FE2CL_NPC_MOVE, moveFollower);
+                    moveFollower.iNPC_ID = followerMob->appearanceData.iNPC_ID;
+                    moveFollower.iMoveStyle = 0;
+                    moveFollower.iToX = point.x + followerMob->offsetX;
+                    moveFollower.iToY = point.y + followerMob->offsetY;
+                    moveFollower.iToZ = point.z;
+                    moveFollower.iSpeed = distanceBetween;
+
+                    NPCManager::sendToViewable(followerMob, &moveFollower, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
+                }
+            }
+
             /* fallthrough */
         default:
             INITSTRUCT(sP_FE2CL_NPC_MOVE, move);

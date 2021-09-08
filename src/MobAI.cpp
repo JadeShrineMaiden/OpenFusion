@@ -715,26 +715,6 @@ static void roamingStep(Mob *mob, time_t currTime) {
     // add a route to the queue; to be processed in Transport::stepNPCPathing()
     Transport::lerp(&queue, from, to, speed);
     Transport::NPCQueues[mob->appearanceData.iNPC_ID] = queue;
-
-    if (mob->groupLeader != 0 && mob->groupLeader == mob->appearanceData.iNPC_ID) {
-        // make followers follow this npc.
-        for (int i = 0; i < 4; i++) {
-            if (mob->groupMember[i] == 0)
-                break;
-
-            if (NPCManager::NPCs.find(mob->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[mob->groupMember[i]]->type != EntityType::MOB) {
-                std::cout << "[WARN] roamingStep: leader can't find a group member!" << std::endl;
-                continue;
-            }
-
-            std::queue<Vec3> queue2;
-            Mob* followerMob = (Mob*)NPCManager::NPCs[mob->groupMember[i]];
-            from = { followerMob->x, followerMob->y, followerMob->z };
-            to = { farX + followerMob->offsetX, farY + followerMob->offsetY, followerMob->z };
-            Transport::lerp(&queue2, from, to, speed);
-            Transport::NPCQueues[followerMob->appearanceData.iNPC_ID] = queue2;
-        }
-    }
 }
 
 static void retreatStep(Mob *mob, time_t currTime) {
