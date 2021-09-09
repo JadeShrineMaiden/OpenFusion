@@ -364,27 +364,8 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
     if (it == Transport::NPCQueues.end() || it->second.empty())
         return;
 
-    // rewind or empty the movement queue
-    if (mob->staticPath) {
-        /*
-         * This is inelegant, but we wind forward in the path until we find the point that
-         * corresponds with the Mob's spawn point.
-         *
-         * IMPORTANT: The check in TableData::loadPaths() must pass or else this will loop forever.
-         */
-        auto& queue = it->second;
-        int i = Rand::rand(250);
-        for (auto point = queue.front(); i > 0; point = queue.front()) {
-            queue.pop();
-            queue.push(point);
-            mob->spawnX = point.x;
-            mob->spawnY = point.y;
-            mob->spawnZ = point.z;
-            i -= 1;
-        }
-    } else {
+    if (!mob->staticPath)
         Transport::NPCQueues.erase(mob->appearanceData.iNPC_ID);
-    }
 }
 
 static void combatBegin(CNSocket *sock, CNPacketData *data) {

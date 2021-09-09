@@ -263,7 +263,8 @@ static void stepNPCPathing() {
         }
 
         // do not roam if not roaming
-        if (npc->type == EntityType::MOB && ((Mob*)npc)->state != MobState::ROAMING) {
+        // or dead, dead mobs need to roam now
+        if (npc->type == EntityType::MOB && !(((Mob*)npc)->state == MobState::ROAMING || ((Mob*)npc)->state == MobState::DEAD)) {
             it++;
             continue;
         }
